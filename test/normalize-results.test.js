@@ -109,3 +109,47 @@ test('localizes TorrServer binary size labels', () => {
   assert.equal(plugin.normalizeSizeLabel('4.5 GCiB'), '4,5 ГБ');
   assert.equal(plugin.normalizeSizeLabel('900 KCiB'), '900 КБ');
 });
+
+test('builds a Lampa full movie object that keeps the playable torrent card', () => {
+  const source = {
+    Title: 'The Matrix 1999 1080p',
+    Link: 'http://torrserver.home/dl/matrix.torrent',
+    size: '12,4 ГБ',
+    Seeders: 12,
+    Peers: 3,
+    CategoryDesc: 'Movies',
+    tmdb: {
+      title: 'The Matrix',
+      original_title: 'The Matrix',
+      release_date: '1999-03-31',
+      poster_path: '/poster.jpg',
+      backdrop_path: '/backdrop.jpg',
+      overview: 'A hacker discovers the truth.'
+    }
+  };
+
+  const movie = plugin.buildFullMovie(source);
+
+  assert.equal(movie.source, 'torrserver');
+  assert.equal(movie.method, 'movie');
+  assert.equal(movie.title, 'The Matrix 1999 1080p');
+  assert.equal(movie.release_date, '1999-03-31');
+  assert.equal(movie.poster_path, '/poster.jpg');
+  assert.equal(movie.background_image, '/backdrop.jpg');
+  assert.equal(movie.ts_torrent_card, source);
+  assert.equal(movie.card, source);
+});
+
+test('resolves the playable torrent card from Lampa full route params', () => {
+  const source = {
+    Title: 'The Matrix',
+    Link: 'http://torrserver.home/dl/matrix.torrent'
+  };
+  const movie = plugin.buildFullMovie(source);
+
+  assert.equal(plugin.fullRouteCard(movie), source);
+  assert.equal(plugin.fullRouteCard({ card: source }), source);
+  assert.equal(plugin.fullRouteCard({ movie }), source);
+  assert.equal(plugin.fullRouteCard(source), source);
+  assert.equal(plugin.fullRouteCard({ source: 'torrserver' }), null);
+});
