@@ -310,6 +310,7 @@
     var release = tmdb.release_date || tmdb.first_air_date || publishDate(item) || '';
     var poster = tmdb.poster_path || (item.poster && item.poster.indexOf('data:image/') !== 0 ? item.poster : '');
     var backdrop = tmdb.backdrop_path || tmdb.background_image || poster;
+    var countries = normalizeCountries(tmdb);
 
     return {
       id: id,
@@ -329,8 +330,36 @@
       poster_path: poster,
       img: poster,
       background_image: backdrop,
+      production_countries: countries.map(function (name) {
+        return {
+          iso_3166_1: name,
+          name: name
+        };
+      }),
+      origin_country: countries,
+      countries: countries,
+      production_companies: [],
       ts_torrent_card: item
     };
+  }
+
+  function normalizeCountries(tmdb) {
+    var values = [];
+
+    if (Array.isArray(tmdb.production_countries)) {
+      tmdb.production_countries.forEach(function (country) {
+        values.push(country && (country.name || country.iso_3166_1 || country));
+      });
+    }
+
+    if (Array.isArray(tmdb.origin_country)) {
+      values = values.concat(tmdb.origin_country);
+    }
+
+    if (typeof tmdb.production_countries === 'string') values.push(tmdb.production_countries);
+    if (typeof tmdb.origin_country === 'string') values.push(tmdb.origin_country);
+
+    return values.filter(Boolean);
   }
 
   function fullRouteCard(params) {

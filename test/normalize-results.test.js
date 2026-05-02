@@ -124,7 +124,8 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
       release_date: '1999-03-31',
       poster_path: '/poster.jpg',
       backdrop_path: '/backdrop.jpg',
-      overview: 'A hacker discovers the truth.'
+      overview: 'A hacker discovers the truth.',
+      production_countries: [{ iso_3166_1: 'US', name: 'United States of America' }]
     }
   };
 
@@ -136,6 +137,9 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
   assert.equal(movie.release_date, '1999-03-31');
   assert.equal(movie.poster_path, '/poster.jpg');
   assert.equal(movie.background_image, '/backdrop.jpg');
+  assert.deepEqual(movie.origin_country, ['United States of America']);
+  assert.deepEqual(movie.countries, ['United States of America']);
+  assert.deepEqual(movie.production_companies, []);
   assert.equal(movie.ts_torrent_card, source);
   assert.equal(movie.card, source);
 });
