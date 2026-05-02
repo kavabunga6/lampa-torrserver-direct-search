@@ -23,6 +23,7 @@ test('normalizes TorrServer Torznab items with download links', () => {
   assert.equal(results[0].Link, 'http://torrserver.home/dl/matrix.torrent');
   assert.equal(results[0].Seeders, 12);
   assert.equal(results[0].Peers, 3);
+  assert.equal(results[0].size, '12,4 ГБ');
   assert.equal(results[0].CategoryDesc, 'Movies');
   assert.match(results[0].poster, /^data:image\/svg\+xml;charset=UTF-8,/);
   assert.equal(results[0].img, results[0].poster);
@@ -63,6 +64,7 @@ test('normalizes lowercase TorrServer fields', () => {
   assert.equal(results[0].Title, 'Matrix Reloaded');
   assert.equal(results[0].MagnetUri, 'http://torrserver.home/dl/matrix-reloaded.torrent');
   assert.equal(results[0].Tracker, 'Prowlarr');
+  assert.equal(results[0].size, '8 ГБ');
   assert.equal(results[0].Seeders, 5);
   assert.equal(results[0].Peers, 2);
 });
@@ -100,4 +102,10 @@ test('formats torrent peer numbers compactly', () => {
   assert.equal(plugin.formatNumber(235), '235');
   assert.equal(plugin.formatNumber(1200), '1.2k');
   assert.equal(plugin.formatNumber(12500), '13k');
+});
+
+test('localizes TorrServer binary size labels', () => {
+  assert.equal(plugin.normalizeSizeLabel('568.3 MCiB'), '568 МБ');
+  assert.equal(plugin.normalizeSizeLabel('4.5 GCiB'), '4,5 ГБ');
+  assert.equal(plugin.normalizeSizeLabel('900 KCiB'), '900 КБ');
 });

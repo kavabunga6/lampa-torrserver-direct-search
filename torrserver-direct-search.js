@@ -569,8 +569,91 @@
   }
 
   function normalizeSize(size) {
-    if (typeof size === 'number') return lampaUtils().bytesToSize(size);
-    return size || '';
+    if (typeof size === 'number') return formatBytes(size);
+
+    return normalizeSizeLabel(size);
+  }
+
+  function normalizeSizeLabel(size) {
+    if (!size && size !== 0) return '';
+
+    var text = String(size).trim();
+    var match = text.match(/^([\d\s.,]+)\s*([kmgtp])c?i?b$/i);
+
+    if (!match) return text;
+
+    return formatSizeValue(parseSizeNumber(match[1]), match[2]);
+  }
+
+  function parseSizeNumber(value) {
+    value = String(value || '').replace(/\s+/g, '').replace(',', '.');
+    var number = parseFloat(value);
+
+    return isNaN(number) ? 0 : number;
+  }
+
+  function formatBytes(bytes) {
+    var value = Number(bytes);
+    var units = ['b', 'k', 'm', 'g', 't', 'p'];
+    var index = 0;
+
+    if (!value || value < 0) return formatSizeValue(0, 'b');
+
+    while (value >= 1024 && index < units.length - 1) {
+      value = value / 1024;
+      index++;
+    }
+
+    return formatSizeValue(value, units[index]);
+  }
+
+  function formatSizeValue(value, unit) {
+    var locale = currentLocale();
+    var labels = sizeUnitLabels(locale);
+    var label = labels[String(unit || '').toLowerCase()] || unit;
+    var decimals = value >= 100 || Math.round(value) === value ? 0 : 1;
+    var formatter = typeof Intl !== 'undefined' ? new Intl.NumberFormat(locale, {
+      maximumFractionDigits: decimals
+    }) : null;
+    var number = formatter ? formatter.format(value) : String(Number(value.toFixed(decimals)));
+
+    return number + ' ' + label;
+  }
+
+  function sizeUnitLabels(locale) {
+    if (/^ru\b/i.test(locale || '')) {
+      return {
+        b: 'Б',
+        k: 'КБ',
+        m: 'МБ',
+        g: 'ГБ',
+        t: 'ТБ',
+        p: 'ПБ'
+      };
+    }
+
+    return {
+      b: 'B',
+      k: 'KiB',
+      m: 'MiB',
+      g: 'GiB',
+      t: 'TiB',
+      p: 'PiB'
+    };
+  }
+
+  function currentLocale() {
+    if (typeof window !== 'undefined') {
+      if (window.Lampa && Lampa.Storage && Lampa.Storage.field('language')) {
+        return Lampa.Storage.field('language');
+      }
+
+      if (window.navigator && (navigator.language || navigator.userLanguage)) {
+        return navigator.language || navigator.userLanguage;
+      }
+    }
+
+    return 'ru-RU';
   }
 
   function shortText(text, len) {
@@ -971,6 +1054,7 @@
       cleanPosterQuery: cleanPosterQuery,
       formatSearchResults: formatSearchResults,
       formatNumber: formatNumber,
+      normalizeSizeLabel: normalizeSizeLabel,
       normalizeResults: normalizeResults
     };
   }
