@@ -11,6 +11,7 @@
   var menu_listener_registered = false;
   var torrent_return_active = false;
   var modal_listener_registered = false;
+  var torrent_file_listener_registered = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -465,10 +466,11 @@
   function prepareTorrentReturn() {
     torrent_return_active = true;
     watchTorrentModalClose();
+    watchTorrentFileClose();
 
     if (Lampa.Torrent && Lampa.Torrent.back) {
       Lampa.Torrent.back(function () {
-        finishTorrentReturn(true);
+        scheduleTorrentReturn(true);
       });
     }
 
@@ -476,7 +478,7 @@
       Lampa.Torrent.opened(function () {
         if (Lampa.Player && Lampa.Player.callback) {
           Lampa.Player.callback(function () {
-            finishTorrentReturn(true);
+            scheduleTorrentReturn(true);
           });
         }
       });
@@ -488,7 +490,18 @@
 
     modal_listener_registered = true;
     Lampa.Modal.listener.follow('close', function () {
-      if (torrent_return_active) finishTorrentReturn(false);
+      if (torrent_return_active) scheduleTorrentReturn(false);
+    });
+  }
+
+  function watchTorrentFileClose() {
+    if (torrent_file_listener_registered || !Lampa.Listener || !Lampa.Listener.follow) return;
+
+    torrent_file_listener_registered = true;
+    Lampa.Listener.follow('torrent_file', function (event) {
+      if (torrent_return_active && event && event.type === 'list_close') {
+        scheduleTorrentReturn(true);
+      }
     });
   }
 
@@ -499,14 +512,39 @@
     restoreFullController();
   }
 
+  function scheduleTorrentReturn(close_modal) {
+    finishTorrentReturn(close_modal);
+
+    [120, 450].forEach(function (delay) {
+      setTimeout(function () {
+        closeStuckTorrentModal();
+        restoreFullController();
+      }, delay);
+    });
+  }
+
   function closeTorrentModal() {
     if (Lampa.Modal && Lampa.Modal.close) {
       try {
-        Lampa.Modal.close();
+        if (!Lampa.Modal.opened || Lampa.Modal.opened()) Lampa.Modal.close();
       } catch (error) {
         logDebug('modal close failed', error);
       }
     }
+  }
+
+  function closeStuckTorrentModal() {
+    if (!Lampa.Modal || !Lampa.Modal.opened || !Lampa.Modal.opened()) return;
+
+    var modal = Lampa.Modal.render && Lampa.Modal.render();
+    var text = modal && modal.text ? modal.text() : '';
+    var looks_like_torrent_modal = modal && (
+      modal.find('.torrent-file, .torrent-serial, .torrent-install').length ||
+      modal.find('.modal__body .modal-loading, .modal__body .loading, .modal__body .loader').length ||
+      text.indexOf('Файлы') > -1
+    );
+
+    if (looks_like_torrent_modal) closeTorrentModal();
   }
 
   function restoreFullController() {
