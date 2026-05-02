@@ -8,7 +8,7 @@
 - открывает поиск только по источнику TorrServer;
 - может добавить отдельную вкладку `TorrServer` в общий поиск Lampa;
 - отправляет выбранный magnet в стандартный проигрыватель Lampa через `Lampa.Torrent.start`;
-- использует endpoint TorrServer `/search/?query=...`.
+- использует endpoint TorrServer `/torznab/search/?query=...`, с опциональным fallback на `/search/?query=...`.
 
 ## Установка
 
@@ -24,6 +24,20 @@
 - `Адрес TorrServer` - ручной адрес, например `http://192.168.1.10:8090`.
 - `Добавить вкладку в общий поиск` - включает источник в обычном поиске Lampa.
 - `Таймаут поиска, секунд` - ограничение ожидания ответа от TorrServer.
+- `Источник поиска TorrServer` - `Torznab`, `Rutor` или `Torznab + Rutor`.
+
+## Проверка
+
+```bash
+npm test
+npm run test:smoke
+```
+
+Smoke-тест по умолчанию проверяет `http://torrserver.home/torznab/search/?query=matrix`. Адрес и запрос можно заменить:
+
+```bash
+TORRSERVER_URL=http://torrserver.home TORRSERVER_QUERY=matrix npm run test:smoke
+```
 
 ## Важно
 

@@ -3,6 +3,7 @@
 
   var PLUGIN_ID = 'ts_direct_search';
   var PLUGIN_NAME = 'TorrServer Direct Search';
+  var DEFAULT_ENDPOINT = 'torznab';
   var network;
   var source;
   var menu_button;
@@ -36,6 +37,7 @@
         event.name === PLUGIN_ID + '_in_global_search' ||
         event.name === PLUGIN_ID + '_use_lampa_url' ||
         event.name === PLUGIN_ID + '_url' ||
+        event.name === PLUGIN_ID + '_endpoint' ||
         event.name === 'torrserver_url' ||
         event.name === 'torrserver_url_two' ||
         event.name === 'torrserver_use_link'
@@ -105,6 +107,24 @@
       field: {
         name: 'Таймаут поиска, секунд',
         description: 'Сколько ждать ответ от TorrServer.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_endpoint',
+        type: 'select',
+        values: {
+          torznab: 'Torznab',
+          rutor: 'Rutor',
+          both: 'Torznab + Rutor'
+        },
+        default: DEFAULT_ENDPOINT
+      },
+      field: {
+        name: 'Источник поиска TorrServer',
+        description: 'Torznab использует настроенные в TorrServer Jackett/Prowlarr-индексеры.'
       }
     });
   }
@@ -241,10 +261,7 @@
 
     network.timeout(timeout * 1000);
 
-    var url = buildUrl(base, '/search/', [{ name: 'query', value: query }]);
-    var request = network.native || network.silent;
-
-    request.call(network, url, function (json) {
+    requestTorrServer(query, function (json) {
       if (!Array.isArray(json)) {
         fail();
         return;
@@ -254,26 +271,63 @@
     }, fail);
   }
 
+  function requestTorrServer(query, done, fail) {
+    var endpoint = Lampa.Storage.field(PLUGIN_ID + '_endpoint') || DEFAULT_ENDPOINT;
+    var endpoints = endpoint === 'both' ? ['torznab', 'rutor'] : [endpoint];
+    var results = [];
+    var index = 0;
+
+    function next() {
+      var current = endpoints[index++];
+      if (!current) {
+        done(results);
+        return;
+      }
+
+      requestEndpoint(current, query, function (json) {
+        if (Array.isArray(json) && json.length) {
+          results = results.concat(json);
+          done(results);
+        } else {
+          next();
+        }
+      }, function () {
+        next();
+      });
+    }
+
+    next();
+  }
+
+  function requestEndpoint(endpoint, query, done, fail) {
+    var base = getTorrServerUrl();
+    var path = endpoint === 'rutor' ? '/search/' : '/torznab/search/';
+    var url = buildUrl(base, path, [{ name: 'query', value: query }]);
+    var request = network.native || network.silent;
+
+    request.call(network, url, done, fail);
+  }
+
   function normalizeResults(items) {
     var checked_at = Date.now();
 
     return items.map(function (item) {
-      var title = item.Title || item.title || '';
-      var magnet = item.Magnet || item.MagnetUri || item.Link || '';
-      var hash = Lampa.Utils.hash(magnet || title);
+      var title = item.Title || item.title || item.Name || item.name || '';
+      var link = item.Magnet || item.magnet || item.MagnetUri || item.downloadUrl || item.Link || item.link || '';
+      var hash = lampaUtils().hash(link || title);
 
       return {
         Title: title,
         title: title,
-        Tracker: item.Tracker || item.tracker || '',
+        Tracker: item.Tracker || item.tracker || item.Indexer || item.indexer || '',
         Size: item.Size || item.size || 0,
         size: normalizeSize(item.Size || item.size || 0),
-        PublishDate: Lampa.Utils.strToTime(item.CreateDate || item.PublishDate || item.publishDate || ''),
+        PublishDate: lampaUtils().strToTime(item.CreateDate || item.createDate || item.PublishDate || item.publishDate || ''),
         Seeders: parseInt(item.Seed || item.Seeders || item.seeders || 0, 10),
         Peers: parseInt(item.Peer || item.Peers || item.peers || 0, 10),
-        MagnetUri: magnet,
-        Link: magnet,
-        CategoryDesc: item.Categories || item.CategoryDesc || '',
+        MagnetUri: link,
+        Link: link,
+        CategoryDesc: item.Categories || item.categories || item.CategoryDesc || '',
         bitrate: '-',
         checked_at: checked_at,
         source_rank: 0,
@@ -301,11 +355,11 @@
 
   function normalizeUrl(url) {
     if (!url) return '';
-    return Lampa.Utils.checkEmptyUrl((url + '').replace(/\/+$/, ''));
+    return lampaUtils().checkEmptyUrl((url + '').replace(/\/+$/, ''));
   }
 
   function buildUrl(base, path, query) {
-    if (Lampa.Utils.buildUrl) return Lampa.Utils.buildUrl(base, path, query);
+    if (lampaUtils().buildUrl) return lampaUtils().buildUrl(base, path, query);
 
     var url = base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
     var query_string = query.map(function (item) {
@@ -316,19 +370,49 @@
   }
 
   function viewed(hash) {
+    if (typeof window === 'undefined' || !window.Lampa || !Lampa.Storage) return false;
+
     var view = Lampa.Storage.cache('torrents_view', 5000, []);
     return view.indexOf(hash) > -1;
   }
 
   function normalizeSize(size) {
-    if (typeof size === 'number') return Lampa.Utils.bytesToSize(size);
+    if (typeof size === 'number') return lampaUtils().bytesToSize(size);
     return size || '';
   }
 
   function shortText(text, len) {
     text = text || '';
-    if (Lampa.Utils.shortText) return Lampa.Utils.shortText(text, len);
+    if (lampaUtils().shortText) return lampaUtils().shortText(text, len);
     return text.length > len ? text.slice(0, len - 3) + '...' : text;
+  }
+
+  function lampaUtils() {
+    if (typeof window !== 'undefined' && window.Lampa && Lampa.Utils) return Lampa.Utils;
+
+    return {
+      hash: function (text) {
+        var hash = 0;
+        text = text || '';
+
+        for (var i = 0; i < text.length; i++) {
+          hash = ((hash << 5) - hash) + text.charCodeAt(i);
+          hash |= 0;
+        }
+
+        return hash + '';
+      },
+      strToTime: function (value) {
+        var time = Date.parse(value || '');
+        return isNaN(time) ? 0 : time;
+      },
+      checkEmptyUrl: function (url) {
+        return url || '';
+      },
+      bytesToSize: function (size) {
+        return size + ' B';
+      }
+    };
   }
 
   function TorrentResultCard(data) {
@@ -392,5 +476,12 @@
     this.emit('destroy');
   };
 
-  boot();
+  if (typeof window !== 'undefined') boot();
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      buildUrl: buildUrl,
+      normalizeResults: normalizeResults
+    };
+  }
 })();
