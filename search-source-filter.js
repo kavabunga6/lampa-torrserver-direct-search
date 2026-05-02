@@ -50,45 +50,6 @@
       }
     });
 
-    Lampa.SettingsApi.addParam({
-      component: PLUGIN_ID,
-      param: {
-        name: PLUGIN_ID + '_show_cub',
-        type: 'trigger',
-        default: false
-      },
-      field: {
-        name: 'Показывать CUB',
-        description: 'Если выключено, CUB не попадает в поиск и не делает запросы.'
-      }
-    });
-
-    Lampa.SettingsApi.addParam({
-      component: PLUGIN_ID,
-      param: {
-        name: PLUGIN_ID + '_show_ai',
-        type: 'trigger',
-        default: false
-      },
-      field: {
-        name: 'Показывать AI-ассистент',
-        description: 'Если выключено, AI-ассистент не попадает в поиск и не делает запросы.'
-      }
-    });
-
-    Lampa.SettingsApi.addParam({
-      component: PLUGIN_ID,
-      param: {
-        name: PLUGIN_ID + '_show_tmdb',
-        type: 'trigger',
-        default: true
-      },
-      field: {
-        name: 'Показывать TMDB',
-        description: 'Можно выключить, если нужен поиск только по дополнительным источникам.'
-      }
-    });
-
     refreshDynamicSettings();
 
     Lampa.SettingsApi.addParam({
@@ -164,7 +125,6 @@
     });
 
     list.forEach(function (item) {
-      if (item.legacy) return;
       if (dynamic_settings[item.key]) return;
 
       dynamic_settings[item.key] = true;
@@ -262,18 +222,6 @@
       disabled_keys: [],
       disabled_names: []
     };
-
-    if (!storageField(PLUGIN_ID + '_show_cub', false)) {
-      rules.disabled_names = rules.disabled_names.concat(['cub', 'куб']);
-    }
-
-    if (!storageField(PLUGIN_ID + '_show_ai', false)) {
-      rules.disabled_names = rules.disabled_names.concat(['ai-assistant', 'ai assistant', 'ai-ассистент', 'ai ассистент', 'ассистент']);
-    }
-
-    if (!storageField(PLUGIN_ID + '_show_tmdb', true)) {
-      rules.disabled_names = rules.disabled_names.concat(['tmdb', 'тмдб']);
-    }
 
     Object.keys(discovered).forEach(function (key) {
       if (!storageField(PLUGIN_ID + '_source_' + key, true)) {

@@ -3,12 +3,12 @@ const assert = require('node:assert/strict');
 
 const filter = require('../search-source-filter');
 
-const rules = {
+const namedRules = {
   disabled_keys: [],
   disabled_names: ['cub', 'ai assistant', 'ассистент']
 };
 
-test('filters CUB and AI assistant sources', () => {
+test('filters sources by explicit names only', () => {
   const sources = [
     { title: 'TMDB' },
     { title: 'CUB' },
@@ -16,7 +16,7 @@ test('filters CUB and AI assistant sources', () => {
     { title: 'TorrServer' }
   ];
 
-  assert.deepEqual(filter.filterSources(sources, rules).map((source) => source.title), [
+  assert.deepEqual(filter.filterSources(sources, namedRules).map((source) => source.title), [
     'TMDB',
     'TorrServer'
   ]);
@@ -27,7 +27,7 @@ test('filters Search.open sources and additional arrays', () => {
     input: 'matrix',
     sources: [{ title: 'CUB' }, { title: 'TorrServer' }],
     additional: [{ title: 'AI Assistant' }, { title: 'Custom' }]
-  }, rules);
+  }, namedRules);
 
   assert.deepEqual(params.sources.map((source) => source.title), ['TorrServer']);
   assert.deepEqual(params.additional.map((source) => source.title), ['Custom']);
@@ -35,7 +35,7 @@ test('filters Search.open sources and additional arrays', () => {
 
 test('keeps unknown params untouched', () => {
   const params = { input: 'matrix', foo: { bar: true } };
-  const filtered = filter.filterOpenParams(params, rules);
+  const filtered = filter.filterOpenParams(params, namedRules);
 
   assert.equal(filtered.input, 'matrix');
   assert.equal(filtered.foo, params.foo);
