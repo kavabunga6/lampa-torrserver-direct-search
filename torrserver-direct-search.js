@@ -128,6 +128,33 @@
         description: 'Torznab использует настроенные в TorrServer Jackett/Prowlarr-индексеры.'
       }
     });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_poster_lookup',
+        type: 'trigger',
+        default: false
+      },
+      field: {
+        name: 'Искать постеры через TMDB',
+        description: 'Опционально. Может делать дополнительные запросы к TMDB, поэтому выключено по умолчанию.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_poster_lookup_limit',
+        type: 'input',
+        values: '',
+        default: '8'
+      },
+      field: {
+        name: 'Сколько постеров искать',
+        description: 'Ограничивает число TMDB-запросов на один поиск.'
+      }
+    });
   }
 
   function addMenuButton() {
@@ -253,7 +280,10 @@
         url: getTorrServerUrl(),
         endpoint: Lampa.Storage.field(PLUGIN_ID + '_endpoint') || DEFAULT_ENDPOINT
       });
-      done(normalized);
+
+      enrichPosters(normalized, function (items) {
+        done(items);
+      });
     }, fail);
   }
 
@@ -356,6 +386,84 @@
     }] : [];
   }
 
+  function enrichPosters(items, done) {
+    var enabled = Lampa.Storage.field(PLUGIN_ID + '_poster_lookup');
+    var limit = parseInt(Lampa.Storage.field(PLUGIN_ID + '_poster_lookup_limit'), 10);
+
+    if (!enabled || !Lampa.Api || !Lampa.Api.search || !Lampa.Api.img) {
+      done(items);
+      return;
+    }
+
+    if (!limit || limit < 1) limit = 8;
+
+    var queue = items.slice(0, limit).filter(function (item) {
+      return item && item.Title;
+    });
+    var pending = queue.length;
+    var completed = false;
+
+    if (!pending) {
+      done(items);
+      return;
+    }
+
+    var timer = setTimeout(function () {
+      finish();
+    }, 4500);
+
+    queue.forEach(function (item) {
+      var query = cleanPosterQuery(item.Title);
+
+      if (!query) {
+        oneDone();
+        return;
+      }
+
+      try {
+        Lampa.Api.search({ query: query }, function (result) {
+          var card = result && (result.movie || result.tv);
+
+          if (card && card.poster_path) {
+            item.poster = Lampa.Api.img(card.poster_path, 'w300');
+            item.img = item.poster;
+          }
+
+          oneDone();
+        });
+      } catch (error) {
+        oneDone();
+      }
+    });
+
+    function oneDone() {
+      pending--;
+      if (pending <= 0) finish();
+    }
+
+    function finish() {
+      if (completed) return;
+
+      completed = true;
+      clearTimeout(timer);
+      done(items);
+    }
+  }
+
+  function cleanPosterQuery(title) {
+    return (title || '')
+      .replace(/\[[^\]]+\]/g, ' ')
+      .replace(/\([^\)]*(?:rip|hdr|hevc|x264|x265|web|dl|bluray|hdtv|proper|repack)[^\)]*\)/ig, ' ')
+      .replace(/\b(2160p|1080p|720p|480p|4k|uhd|hdr|dv|web[- .]?dl|webrip|brrip|bluray|hdtv|hevc|x264|x265|aac|dts|ddp?\d?\.?\d?|mp4|mkv|avi|p2p|proper|repack)\b/ig, ' ')
+      .replace(/\b(19|20)\d{2}\b.*$/, function (match) {
+        return match.slice(0, 4);
+      })
+      .replace(/[-_.]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 80);
+  }
+
   function getTorrServerUrl() {
     if (Lampa.Storage.field(PLUGIN_ID + '_use_lampa_url')) {
       if (Lampa.Torserver && Lampa.Torserver.url && Lampa.Torserver.url()) {
@@ -405,26 +513,15 @@
   }
 
   function buildPoster(title, tracker) {
-    var label = (title || 'TS').replace(/[^\wа-яА-ЯёЁ]+/g, ' ').trim().slice(0, 42);
-    var source = (tracker || 'TorrServer').replace(/[^\wа-яА-ЯёЁ]+/g, ' ').trim().slice(0, 20);
-    var hue = Math.abs(parseInt(lampaUtils().hash(title || source || 'TorrServer'), 10)) % 360;
     var svg = [
       '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">',
-      '<defs>',
-      '<linearGradient id="g" x1="0" x2="1" y1="0" y2="1">',
-      '<stop offset="0" stop-color="hsl(' + hue + ',65%,34%)"/>',
-      '<stop offset="1" stop-color="hsl(' + ((hue + 55) % 360) + ',70%,15%)"/>',
-      '</linearGradient>',
-      '</defs>',
-      '<rect width="300" height="450" fill="url(#g)"/>',
-      '<rect x="22" y="22" width="256" height="406" rx="14" fill="rgba(0,0,0,0.18)" stroke="rgba(255,255,255,0.24)" stroke-width="2"/>',
-      '<text x="150" y="72" fill="rgba(255,255,255,0.72)" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="middle">TorrServer</text>',
-      '<text x="150" y="210" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" text-anchor="middle">',
-      escapeSvg(label),
-      '</text>',
-      '<text x="150" y="360" fill="rgba(255,255,255,0.68)" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle">',
-      escapeSvg(source),
-      '</text>',
+      '<rect width="300" height="450" fill="#3f3f3f"/>',
+      '<g opacity="0.36" fill="none" stroke="#8a8a8a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">',
+      '<rect x="101" y="176" width="98" height="98"/>',
+      '<path d="M112 244l37-21 31 20 19-13"/>',
+      '<path d="M112 263l37-21 31 20 19-13"/>',
+      '<path d="M112 225l22-13 15 10"/>',
+      '</g>',
       '</svg>'
     ].join('');
 
@@ -633,6 +730,8 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       buildUrl: buildUrl,
+      buildPoster: buildPoster,
+      cleanPosterQuery: cleanPosterQuery,
       formatSearchResults: formatSearchResults,
       normalizeResults: normalizeResults
     };

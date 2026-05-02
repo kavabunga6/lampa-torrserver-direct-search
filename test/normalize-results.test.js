@@ -80,3 +80,17 @@ test('formats TorrServer search result as a single non-paginated group', () => {
   assert.equal(groups[0].total_pages, 1);
   assert.equal(groups[0].page, 1);
 });
+
+test('cleans torrent release names for optional poster lookup', () => {
+  assert.equal(plugin.cleanPosterQuery('The.Matrix.1999.1080p.BluRay.x265-GROUP'), 'The Matrix 1999');
+  assert.equal(plugin.cleanPosterQuery('Matrix Reloaded [HDRip] 720p.mkv'), 'Matrix Reloaded');
+});
+
+test('fallback poster uses a neutral no-image SVG', () => {
+  const poster = plugin.buildPoster('Very Long Movie Title That Should Wrap Nicely Inside The Poster 1080p WEB-DL', 'TorrServer');
+  const svg = decodeURIComponent(poster.replace('data:image/svg+xml;charset=UTF-8,', ''));
+
+  assert.match(svg, /fill="#3f3f3f"/);
+  assert.match(svg, /<rect x="101" y="176" width="98" height="98"/);
+  assert.doesNotMatch(svg, /Very Long Movie Title That Should Wrap Nicely Inside The Poster 1080p WEB-DL/);
+});
