@@ -79,6 +79,7 @@ test('formats TorrServer search result as a single non-paginated group', () => {
   assert.equal(groups[0].total, 45);
   assert.equal(groups[0].total_pages, 1);
   assert.equal(groups[0].page, 1);
+  assert.equal(groups[0].params.items.view, 45);
 });
 
 test('cleans torrent release names for optional poster lookup', () => {

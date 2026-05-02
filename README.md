@@ -37,6 +37,7 @@ https://kavabunga6.github.io/lampa-torrserver-direct-search/search-source-filter
 - `Источник поиска TorrServer` - `Torznab`, `Rutor` или `Torznab + Rutor`.
 - `Искать постеры через TMDB` - опциональная подгрузка реальных постеров. По умолчанию выключена.
 - `Сколько постеров искать` - лимит дополнительных TMDB-запросов на один поиск.
+- `Лимит результатов` - сколько результатов TorrServer показывать в одной линии.
 
 ## Проверка
 

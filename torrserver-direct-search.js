@@ -156,6 +156,20 @@
         description: 'Ограничивает число TMDB-запросов на один поиск.'
       }
     });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_results_limit',
+        type: 'input',
+        values: '',
+        default: '120'
+      },
+      field: {
+        name: 'Лимит результатов',
+        description: 'Сколько результатов TorrServer показывать в одной линии.'
+      }
+    });
   }
 
   function addMenuButton() {
@@ -390,7 +404,8 @@
   }
 
   function formatSearchResults(items) {
-    var results = items.map(function (item) {
+    var limit = resultLimit();
+    var results = items.slice(0, limit).map(function (item) {
       item.Title = shortText(item.Title, 110);
       item.title = item.Title;
       item.name = item.Title;
@@ -408,8 +423,30 @@
       results: results,
       total: results.length,
       total_pages: 1,
-      page: 1
+      page: 1,
+      params: {
+        items: {
+          view: Math.max(results.length, 7),
+          align_left: false,
+          mapping: 'line'
+        },
+        scroll: {
+          horizontal: true,
+          step: 300
+        }
+      }
     }] : [];
+  }
+
+  function resultLimit() {
+    var limit = 120;
+
+    if (typeof window !== 'undefined' && window.Lampa && Lampa.Storage) {
+      limit = parseInt(Lampa.Storage.field(PLUGIN_ID + '_results_limit'), 10);
+    }
+
+    if (!limit || limit < 1) limit = 120;
+    return Math.min(limit, 300);
   }
 
   function enrichPosters(items, done) {
