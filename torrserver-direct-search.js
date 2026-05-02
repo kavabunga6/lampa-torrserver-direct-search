@@ -9,9 +9,6 @@
   var menu_button;
   var source_registered = false;
   var menu_listener_registered = false;
-  var torrent_return_active = false;
-  var modal_listener_registered = false;
-  var torrent_file_listener_registered = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -418,7 +415,7 @@
     direct.data('subtitle', 'TorrServer');
     direct.off('hover:enter hover:touch click');
     direct.on('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search', function () {
-      startTorrent(torrent);
+      openTorrentList(torrent);
     });
 
     play.removeClass('hide');
@@ -426,7 +423,7 @@
     play.off('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search');
     play.on('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search', function () {
       if (!page.find('.buttons--container > .full-start__button:not(.hide)').not('.view--torrent').length) {
-        startTorrent(torrent);
+        openTorrentList(torrent);
       }
     });
   }
@@ -451,100 +448,69 @@
       Link: link,
       poster: item.poster || item.img || '',
       img: item.img || item.poster || '',
+      size: item.size || '',
+      Seeders: item.Seeders,
+      Peers: item.Peers,
       hash: item.hash || lampaUtils().hash(link || title)
     };
   }
 
-  function startTorrent(item) {
-    prepareTorrentReturn();
+  function openTorrentList(item) {
+    if (!Lampa.Select || !Lampa.Select.show) {
+      startTorrent(item);
+      return;
+    }
 
+    Lampa.Select.show({
+      title: 'TorrServer',
+      items: [{
+        title: item.Title || item.title || 'Torrent',
+        subtitle: torrentListSubtitle(item),
+        selected: true,
+        onSelect: function () {
+          startTorrent(item);
+        }
+      }],
+      nohide: true,
+      onBack: function () {
+        restoreFullController();
+      }
+    });
+  }
+
+  function torrentListSubtitle(item) {
+    var parts = [];
+
+    if (item.size) parts.push(item.size);
+    if (!isNaN(item.Seeders)) parts.push('S: ' + item.Seeders);
+    if (!isNaN(item.Peers)) parts.push('P: ' + item.Peers);
+
+    return parts.join(' / ') || 'TorrServer';
+  }
+
+  function startTorrent(item) {
+    prepareTorrentReturnToList();
     Lampa.Torrent.start(item, {
       title: item.Title || item.title || 'Torrent'
     });
   }
 
-  function prepareTorrentReturn() {
-    torrent_return_active = true;
-    watchTorrentModalClose();
-    watchTorrentFileClose();
-
+  function prepareTorrentReturnToList() {
     if (Lampa.Torrent && Lampa.Torrent.back) {
       Lampa.Torrent.back(function () {
-        scheduleTorrentReturn(true);
-      });
-    }
-
-    if (Lampa.Torrent && Lampa.Torrent.opened) {
-      Lampa.Torrent.opened(function () {
-        if (Lampa.Player && Lampa.Player.callback) {
-          Lampa.Player.callback(function () {
-            scheduleTorrentReturn(true);
-          });
-        }
+        restoreTorrentList();
       });
     }
   }
 
-  function watchTorrentModalClose() {
-    if (modal_listener_registered || !Lampa.Modal || !Lampa.Modal.listener || !Lampa.Modal.listener.follow) return;
-
-    modal_listener_registered = true;
-    Lampa.Modal.listener.follow('close', function () {
-      if (torrent_return_active) scheduleTorrentReturn(false);
-    });
-  }
-
-  function watchTorrentFileClose() {
-    if (torrent_file_listener_registered || !Lampa.Listener || !Lampa.Listener.follow) return;
-
-    torrent_file_listener_registered = true;
-    Lampa.Listener.follow('torrent_file', function (event) {
-      if (torrent_return_active && event && event.type === 'list_close') {
-        scheduleTorrentReturn(true);
-      }
-    });
-  }
-
-  function finishTorrentReturn(close_modal) {
-    torrent_return_active = false;
-
-    if (close_modal) closeTorrentModal();
-    restoreFullController();
-  }
-
-  function scheduleTorrentReturn(close_modal) {
-    finishTorrentReturn(close_modal);
-
-    [120, 450].forEach(function (delay) {
-      setTimeout(function () {
-        closeStuckTorrentModal();
+  function restoreTorrentList() {
+    setTimeout(function () {
+      if (Lampa.Select && Lampa.Select.render && Lampa.Select.render().hasClass('animate')) {
+        Lampa.Controller.toggle('select');
+      } else {
         restoreFullController();
-      }, delay);
-    });
-  }
-
-  function closeTorrentModal() {
-    if (Lampa.Modal && Lampa.Modal.close) {
-      try {
-        if (!Lampa.Modal.opened || Lampa.Modal.opened()) Lampa.Modal.close();
-      } catch (error) {
-        logDebug('modal close failed', error);
       }
-    }
-  }
-
-  function closeStuckTorrentModal() {
-    if (!Lampa.Modal || !Lampa.Modal.opened || !Lampa.Modal.opened()) return;
-
-    var modal = Lampa.Modal.render && Lampa.Modal.render();
-    var text = modal && modal.text ? modal.text() : '';
-    var looks_like_torrent_modal = modal && (
-      modal.find('.torrent-file, .torrent-serial, .torrent-install').length ||
-      modal.find('.modal__body .modal-loading, .modal__body .loading, .modal__body .loader').length ||
-      text.indexOf('Файлы') > -1
-    );
-
-    if (looks_like_torrent_modal) closeTorrentModal();
+    }, 50);
   }
 
   function restoreFullController() {
