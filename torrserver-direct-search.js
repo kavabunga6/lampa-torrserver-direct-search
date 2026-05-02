@@ -904,10 +904,10 @@
         '<div class="ts-full__body">' +
           '<div class="ts-full__title"></div>' +
           '<div class="ts-full__meta"></div>' +
-          '<div class="ts-full__description"></div>' +
           '<div class="ts-full__actions">' +
             '<div class="selector ts-full__button ts-full__button--play"><div class="ts-full__button-icon">▶</div><div>Смотреть</div></div>' +
           '</div>' +
+          '<div class="ts-full__description"></div>' +
         '</div>' +
       '</div>'
     );
@@ -936,7 +936,7 @@
     Lampa.Controller.add('ts_full', {
       toggle: function () {
         Lampa.Controller.collectionSet(html);
-        Lampa.Controller.collectionFocus(false, html);
+        Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
       },
       up: function () {},
       down: function () {},
@@ -1032,10 +1032,10 @@
       '.ts-full__poster{width:22em;flex-shrink:0;background:#3f3f3f;border-radius:.8em;overflow:hidden;}',
       '.ts-full__poster img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;}',
       '.ts-full__body{min-width:0;max-width:64em;padding-top:1em;}',
-      '.ts-full__title{font-size:3.2em;line-height:1.12;margin-bottom:.45em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}',
-      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.68);line-height:1.45;margin-bottom:1.6em;}',
-      '.ts-full__description{font-size:1.25em;line-height:1.55;color:rgba(255,255,255,.72);white-space:pre-line;margin-bottom:2.3em;}',
-      '.ts-full__actions{display:flex;gap:1em;align-items:center;}',
+      '.ts-full__title{font-size:2.75em;line-height:1.12;margin-bottom:.45em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
+      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.68);line-height:1.45;margin-bottom:1.15em;}',
+      '.ts-full__description{font-size:1.25em;line-height:1.55;color:rgba(255,255,255,.72);white-space:pre-line;margin-top:1.6em;}',
+      '.ts-full__actions{display:flex;gap:1em;align-items:center;margin-bottom:.4em;}',
       '.ts-full__button{height:5.4em;min-width:10.5em;padding:0 1.6em;border-radius:.45em;background:rgba(0,0,0,.42);display:flex;gap:.9em;align-items:center;justify-content:center;font-size:1.05em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
       '.ts-full__button.focus,.ts-full__button.hover{background:#fff;color:#111;}',
       '.ts-full__button--pressed{transform:scale(.965);opacity:.82;}',
