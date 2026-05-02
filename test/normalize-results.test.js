@@ -120,6 +120,7 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
     CategoryDesc: 'Movies',
     tmdb: {
       title: 'The Matrix',
+      id: 603,
       original_title: 'The Matrix',
       release_date: '1999-03-31',
       poster_path: '/poster.jpg',
@@ -133,6 +134,7 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
 
   assert.equal(movie.source, 'torrserver');
   assert.equal(movie.method, 'movie');
+  assert.equal(movie.id, 603);
   assert.equal(movie.title, 'The Matrix 1999 1080p');
   assert.equal(movie.release_date, '1999-03-31');
   assert.equal(movie.poster_path, '/poster.jpg');
@@ -140,8 +142,20 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
   assert.deepEqual(movie.origin_country, ['United States of America']);
   assert.deepEqual(movie.countries, ['United States of America']);
   assert.deepEqual(movie.production_companies, []);
+  assert.equal(movie.ts_reactions_enabled, true);
   assert.equal(movie.ts_torrent_card, source);
   assert.equal(movie.card, source);
+});
+
+test('disables reactions for torrent-only full cards without a real TMDB id', () => {
+  const movie = plugin.buildFullMovie({
+    Title: 'Torrent only result',
+    Link: 'http://torrserver.home/dl/torrent-only.torrent',
+    hash: 'torrent-hash'
+  });
+
+  assert.equal(movie.id, 'torrent-hash');
+  assert.equal(movie.ts_reactions_enabled, false);
 });
 
 test('resolves the playable torrent card from Lampa full route params', () => {

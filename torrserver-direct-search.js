@@ -263,8 +263,9 @@
           return;
         }
 
-        oncomplite({
-          movie: buildFullMovie(card),
+        var movie = buildFullMovie(card);
+        var result = {
+          movie: movie,
           persons: {
             cast: [],
             crew: []
@@ -275,7 +276,15 @@
           simular: {
             results: []
           }
-        });
+        };
+
+        if (movie.ts_reactions_enabled) {
+          result.reactions = {
+            result: []
+          };
+        }
+
+        oncomplite(result);
       }
     };
 
@@ -285,6 +294,7 @@
 
         setTimeout(function () {
           bindFullPlayButton(event.body, fullRouteCard(event.object));
+          toggleFullReactions(event.body, event.data || event.object);
         }, 0);
       });
     }
@@ -306,11 +316,12 @@
   function buildFullMovie(item) {
     var tmdb = item.tmdb || {};
     var title = item.Title || item.title || tmdb.title || tmdb.name || 'TorrServer';
-    var id = item.hash || lampaUtils().hash(item.Link || title || 'torrserver');
+    var id = tmdb.id || item.hash || lampaUtils().hash(item.Link || title || 'torrserver');
     var release = tmdb.release_date || tmdb.first_air_date || publishDate(item) || '';
     var poster = tmdb.poster_path || (item.poster && item.poster.indexOf('data:image/') !== 0 ? item.poster : '');
     var backdrop = tmdb.backdrop_path || tmdb.background_image || poster;
     var countries = normalizeCountries(tmdb);
+    var reactions_enabled = canUseReactions(item);
 
     return {
       id: id,
@@ -339,8 +350,19 @@
       origin_country: countries,
       countries: countries,
       production_companies: [],
+      ts_reactions_enabled: reactions_enabled,
       ts_torrent_card: item
     };
+  }
+
+  function canUseReactions(item) {
+    var tmdb = item && item.tmdb;
+
+    if (!tmdb || !tmdb.id) return false;
+
+    if (typeof window === 'undefined' || !window.Lampa || !Lampa.Api || !Lampa.Api.sources) return true;
+
+    return !!(Lampa.Api.sources.cub && Lampa.Api.sources.cub.reactionsAdd);
   }
 
   function normalizeCountries(tmdb) {
@@ -372,9 +394,9 @@
   }
 
   function bindFullPlayButton(body, item) {
-    if (!body || !item) return;
+    if (!item) return;
 
-    var button = $(body).find('.button--play');
+    var button = fullBody(body).find('.button--play');
 
     button.removeClass('hide');
     button.addClass('selector');
@@ -384,6 +406,23 @@
         title: item.Title || item.title || 'Torrent'
       });
     });
+  }
+
+  function toggleFullReactions(body, params) {
+    var card = fullRouteCard(params);
+    var movie = params && (params.movie || params);
+    var enabled = movie && movie.ts_reactions_enabled;
+
+    if (!enabled && card) enabled = canUseReactions(card);
+    if (enabled) return;
+
+    fullBody(body).find('.full-start-new__reactions, .button--reaction').remove();
+  }
+
+  function fullBody(body) {
+    if (body) return $(body);
+    if (typeof document !== 'undefined') return $(document);
+    return $();
   }
 
   function publishDate(item) {
