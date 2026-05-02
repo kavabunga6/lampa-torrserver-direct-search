@@ -171,3 +171,23 @@ test('resolves the playable torrent card from Lampa full route params', () => {
   assert.equal(plugin.fullRouteCard(source), source);
   assert.equal(plugin.fullRouteCard({ source: 'torrserver' }), null);
 });
+
+test('builds a Torrent.start compatible item from a full route card', () => {
+  const source = {
+    Title: 'The Matrix',
+    Link: 'http://torrserver.home/dl/matrix.torrent',
+    poster: 'http://image.tmdb.org/poster.jpg'
+  };
+  const movie = plugin.buildFullMovie(source);
+  const playable = plugin.playableTorrentItem(movie);
+
+  assert.equal(playable.Title, 'The Matrix');
+  assert.equal(playable.title, 'The Matrix');
+  assert.equal(playable.Link, 'http://torrserver.home/dl/matrix.torrent');
+  assert.equal(playable.MagnetUri, 'http://torrserver.home/dl/matrix.torrent');
+  assert.equal(playable.poster, 'http://image.tmdb.org/poster.jpg');
+});
+
+test('does not start torrents without a playable link', () => {
+  assert.equal(plugin.playableTorrentItem({ title: 'No link' }), null);
+});

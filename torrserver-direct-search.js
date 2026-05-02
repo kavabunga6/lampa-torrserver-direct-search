@@ -292,10 +292,7 @@
       Lampa.Listener.follow('full', function (event) {
         if (!event || event.type !== 'complite' || !event.object || event.object.source !== 'torrserver') return;
 
-        setTimeout(function () {
-          bindFullPlayButton(event.body, fullRouteCard(event.object));
-          toggleFullReactions(event.body, event.data || event.object);
-        }, 0);
+        scheduleFullBindings(event.body, event.data || event.object);
       });
     }
   }
@@ -393,18 +390,70 @@
     return params.Title || params.title || params.Link || params.MagnetUri ? params : null;
   }
 
-  function bindFullPlayButton(body, item) {
-    if (!item) return;
+  function scheduleFullBindings(body, params) {
+    [0, 200, 800].forEach(function (delay) {
+      setTimeout(function () {
+        bindFullPlayButton(body, params);
+        toggleFullReactions(body, params);
+      }, delay);
+    });
+  }
 
-    var button = fullBody(body).find('.button--play');
+  function bindFullPlayButton(body, params) {
+    var torrent = playableTorrentItem(params);
 
-    button.removeClass('hide');
-    button.addClass('selector');
-    button.off('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search');
-    button.on('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search', function () {
-      Lampa.Torrent.start(item, {
-        title: item.Title || item.title || 'Torrent'
-      });
+    if (!torrent) return;
+
+    var page = fullBody(body);
+    var direct = page.find('.view--torrent');
+    var play = page.find('.button--play');
+
+    direct.removeClass('hide');
+    direct.addClass('selector');
+    direct.attr('data-subtitle', 'TorrServer');
+    direct.data('subtitle', 'TorrServer');
+    direct.off('hover:enter hover:touch click');
+    direct.on('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search', function () {
+      startTorrent(torrent);
+    });
+
+    play.removeClass('hide');
+    play.addClass('selector');
+    play.off('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search');
+    play.on('hover:enter.ts-direct-search hover:touch.ts-direct-search click.ts-direct-search', function () {
+      if (!page.find('.buttons--container > .full-start__button:not(.hide)').not('.view--torrent').length) {
+        startTorrent(torrent);
+      }
+    });
+  }
+
+  function playableTorrentItem(item) {
+    item = fullRouteCard(item);
+
+    if (!item) return null;
+
+    var link = item.MagnetUri || item.Link || item.link || item.url;
+
+    if (!link && item.card) link = item.card.MagnetUri || item.card.Link || item.card.link || item.card.url;
+    if (!link && item.ts_torrent_card) link = item.ts_torrent_card.MagnetUri || item.ts_torrent_card.Link || item.ts_torrent_card.link || item.ts_torrent_card.url;
+    if (!link) return null;
+
+    var title = item.Title || item.title || item.name || 'Torrent';
+
+    return {
+      Title: title,
+      title: title,
+      MagnetUri: link,
+      Link: link,
+      poster: item.poster || item.img || '',
+      img: item.img || item.poster || '',
+      hash: item.hash || lampaUtils().hash(link || title)
+    };
+  }
+
+  function startTorrent(item) {
+    Lampa.Torrent.start(item, {
+      title: item.Title || item.title || 'Torrent'
     });
   }
 
@@ -1103,7 +1152,8 @@
       formatNumber: formatNumber,
       fullRouteCard: fullRouteCard,
       normalizeSizeLabel: normalizeSizeLabel,
-      normalizeResults: normalizeResults
+      normalizeResults: normalizeResults,
+      playableTorrentItem: playableTorrentItem
     };
   }
 })();
