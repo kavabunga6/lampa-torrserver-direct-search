@@ -37,3 +37,17 @@ test('keeps unknown params untouched', () => {
   assert.equal(filtered.input, 'matrix');
   assert.equal(filtered.foo, params.foo);
 });
+
+test('empty rules keep every source enabled', () => {
+  const sources = [
+    { title: 'TMDB' },
+    { title: 'CUB' },
+    { title: 'AI-ассистент' }
+  ];
+
+  assert.deepEqual(filter.filterSources(sources, []).map((source) => source.title), [
+    'TMDB',
+    'CUB',
+    'AI-ассистент'
+  ]);
+});

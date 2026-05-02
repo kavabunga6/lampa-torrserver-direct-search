@@ -38,39 +38,52 @@
     Lampa.SettingsApi.addParam({
       component: PLUGIN_ID,
       param: {
-        name: PLUGIN_ID + '_disable_cub',
+        name: PLUGIN_ID + '_enabled',
         type: 'trigger',
         default: true
       },
       field: {
-        name: 'Отключить CUB',
-        description: 'Убирает CUB из поиска и не запускает запросы к нему.'
+        name: 'Фильтр включен',
+        description: 'Если выключить, все источники поиска снова будут доступны.'
       }
     });
 
     Lampa.SettingsApi.addParam({
       component: PLUGIN_ID,
       param: {
-        name: PLUGIN_ID + '_disable_ai',
-        type: 'trigger',
-        default: true
-      },
-      field: {
-        name: 'Отключить AI-ассистент',
-        description: 'Блокирует источник AI-ассистента при добавлении в поиск.'
-      }
-    });
-
-    Lampa.SettingsApi.addParam({
-      component: PLUGIN_ID,
-      param: {
-        name: PLUGIN_ID + '_disable_tmdb',
+        name: PLUGIN_ID + '_show_cub',
         type: 'trigger',
         default: false
       },
       field: {
-        name: 'Отключить TMDB',
-        description: 'Опционально убирает TMDB из общего поиска.'
+        name: 'Показывать CUB',
+        description: 'Если выключено, CUB не попадает в поиск и не делает запросы.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_show_ai',
+        type: 'trigger',
+        default: false
+      },
+      field: {
+        name: 'Показывать AI-ассистент',
+        description: 'Если выключено, AI-ассистент не попадает в поиск и не делает запросы.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_show_tmdb',
+        type: 'trigger',
+        default: true
+      },
+      field: {
+        name: 'Показывать TMDB',
+        description: 'Можно выключить, если нужен поиск только по дополнительным источникам.'
       }
     });
 
@@ -178,17 +191,19 @@
   }
 
   function getBlockedRules() {
+    if (!storageField(PLUGIN_ID + '_enabled', true)) return [];
+
     var rules = [];
 
-    if (storageField(PLUGIN_ID + '_disable_cub', true)) {
+    if (!storageField(PLUGIN_ID + '_show_cub', false)) {
       rules = rules.concat(['cub', 'куб']);
     }
 
-    if (storageField(PLUGIN_ID + '_disable_ai', true)) {
+    if (!storageField(PLUGIN_ID + '_show_ai', false)) {
       rules = rules.concat(['ai-assistant', 'ai assistant', 'ai-ассистент', 'ai ассистент', 'ассистент']);
     }
 
-    if (storageField(PLUGIN_ID + '_disable_tmdb', false)) {
+    if (!storageField(PLUGIN_ID + '_show_tmdb', true)) {
       rules = rules.concat(['tmdb', 'тмдб']);
     }
 
