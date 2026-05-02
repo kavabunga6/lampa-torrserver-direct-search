@@ -72,6 +72,7 @@
       param: {
         name: PLUGIN_ID + '_url',
         type: 'input',
+        values: '',
         default: 'http://127.0.0.1:8090'
       },
       field: {
@@ -98,6 +99,7 @@
       param: {
         name: PLUGIN_ID + '_timeout',
         type: 'input',
+        values: '',
         default: '15'
       },
       field: {
