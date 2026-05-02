@@ -452,9 +452,53 @@
   }
 
   function startTorrent(item) {
+    prepareTorrentReturn();
+
     Lampa.Torrent.start(item, {
       title: item.Title || item.title || 'Torrent'
     });
+  }
+
+  function prepareTorrentReturn() {
+    if (Lampa.Torrent && Lampa.Torrent.back) {
+      Lampa.Torrent.back(function () {
+        closeTorrentModal();
+        restoreFullController();
+      });
+    }
+
+    if (Lampa.Torrent && Lampa.Torrent.opened) {
+      Lampa.Torrent.opened(function () {
+        if (Lampa.Player && Lampa.Player.callback) {
+          Lampa.Player.callback(function () {
+            closeTorrentModal();
+            restoreFullController();
+          });
+        }
+      });
+    }
+  }
+
+  function closeTorrentModal() {
+    if (Lampa.Modal && Lampa.Modal.close) {
+      try {
+        Lampa.Modal.close();
+      } catch (error) {
+        logDebug('modal close failed', error);
+      }
+    }
+  }
+
+  function restoreFullController() {
+    setTimeout(function () {
+      if (!Lampa.Controller || !Lampa.Controller.toggle) return;
+
+      try {
+        Lampa.Controller.toggle('full_start');
+      } catch (error) {
+        Lampa.Controller.toggle('content');
+      }
+    }, 50);
   }
 
   function toggleFullReactions(body, params) {
