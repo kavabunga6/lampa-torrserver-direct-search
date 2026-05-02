@@ -782,6 +782,7 @@
 
   TorrentResultCard.prototype.onEnter = function () {
     pressCard(this.html);
+    if (Lampa.Controller && Lampa.Controller.toContent) Lampa.Controller.toContent();
     this.emit('enter', this.html, this.data);
   };
 
@@ -912,7 +913,10 @@
           '</div>' +
           '<div class="ts-full__meta"></div>' +
           '<div class="ts-full__actions">' +
-            '<div class="selector ts-full__button ts-full__button--play"><div class="ts-full__button-icon">▶</div><div>Смотреть</div></div>' +
+            '<div class="selector ts-full__button ts-full__button--play">' +
+              '<div class="ts-full__play-circle"><div class="ts-full__play-triangle"></div></div>' +
+              '<div>Смотреть</div>' +
+            '</div>' +
           '</div>' +
           '<div class="ts-full__description"></div>' +
         '</div>' +
@@ -950,12 +954,18 @@
         Lampa.Controller.collectionSet(html);
         Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
       },
-      up: function () {},
-      down: function () {},
-      left: function () {
-        Lampa.Controller.toggle('menu');
+      up: function () {
+        Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
       },
-      right: function () {},
+      down: function () {
+        Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
+      },
+      left: function () {
+        Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
+      },
+      right: function () {
+        Lampa.Controller.collectionFocus(html.find('.ts-full__button--play'), html);
+      },
       back: function () {
         Lampa.Activity.backward();
       }
@@ -1043,22 +1053,23 @@
     var style = document.createElement('style');
     style.id = 'ts-full-styles';
     style.textContent = [
-      '.ts-full{min-height:100%;display:flex;gap:4.3em;align-items:flex-start;padding:3.8em 4em 3em 7.5em;box-sizing:border-box;color:#fff;}',
-      '.ts-full__poster{width:21.4em;flex-shrink:0;background:#3f3f3f;border-radius:0;overflow:hidden;}',
+      '.ts-full{min-height:100%;display:flex;gap:3.2em;align-items:flex-start;padding:3.2em 3em 2.4em 5.4em;box-sizing:border-box;color:#fff;}',
+      '.ts-full__poster{width:18.2em;flex-shrink:0;background:#3f3f3f;border-radius:0;overflow:hidden;}',
       '.ts-full__poster img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;}',
-      '.ts-full__body{min-width:0;max-width:68em;padding-top:.25em;}',
-      '.ts-full__topline{font-size:1.35em;color:rgba(255,255,255,.6);line-height:1.3;margin-bottom:.55em;}',
-      '.ts-full__title{font-size:4.15em;line-height:1.04;margin-bottom:.22em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
-      '.ts-full__subtitle{font-size:2em;line-height:1.25;color:rgba(255,255,255,.92);margin-bottom:.9em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}',
-      '.ts-full__badges{display:flex;gap:.65em;align-items:center;margin-bottom:1.5em;}',
-      '.ts-full__badge{min-height:2.2em;padding:0 .7em;border-radius:.35em;background:rgba(0,0,0,.3);display:flex;align-items:center;font-size:1.15em;color:rgba(255,255,255,.9);}',
-      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.78);line-height:1.45;margin-bottom:1.45em;}',
-      '.ts-full__description{font-size:1.15em;line-height:1.45;color:rgba(255,255,255,.58);white-space:pre-line;margin-top:1.4em;max-width:54em;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}',
+      '.ts-full__body{min-width:0;max-width:58em;padding-top:.1em;}',
+      '.ts-full__topline{font-size:1.08em;color:rgba(255,255,255,.6);line-height:1.3;margin-bottom:.38em;}',
+      '.ts-full__title{font-size:3.1em;line-height:1.05;margin-bottom:.22em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
+      '.ts-full__subtitle{font-size:1.46em;line-height:1.24;color:rgba(255,255,255,.88);margin-bottom:.85em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}',
+      '.ts-full__badges{display:flex;gap:.55em;align-items:center;margin-bottom:1.1em;}',
+      '.ts-full__badge{min-height:2em;padding:0 .65em;border-radius:.3em;background:rgba(0,0,0,.3);display:flex;align-items:center;font-size:1em;color:rgba(255,255,255,.9);}',
+      '.ts-full__meta{font-size:1.08em;color:rgba(255,255,255,.78);line-height:1.35;margin-bottom:1.05em;}',
+      '.ts-full__description{font-size:1em;line-height:1.38;color:rgba(255,255,255,.58);white-space:pre-line;margin-top:1.1em;max-width:50em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}',
       '.ts-full__actions{display:flex;gap:1em;align-items:center;margin-bottom:.4em;}',
-      '.ts-full__button{height:4.6em;min-width:13.4em;padding:0 1.4em;border-radius:.32em;background:rgba(0,0,0,.42);display:flex;gap:.9em;align-items:center;justify-content:center;font-size:1.22em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
+      '.ts-full__button{height:4em;min-width:12.2em;padding:0 1.35em;border-radius:.28em;background:rgba(0,0,0,.42);display:flex;gap:.85em;align-items:center;justify-content:center;font-size:1.18em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
       '.ts-full__button.focus,.ts-full__button.hover{background:#fff;color:#111;}',
       '.ts-full__button--pressed{transform:scale(.965);opacity:.82;}',
-      '.ts-full__button-icon{font-size:1.6em;line-height:1;}'
+      '.ts-full__play-circle{width:1.78em;height:1.78em;border:.18em solid currentColor;border-radius:50%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}',
+      '.ts-full__play-triangle{width:0;height:0;border-top:.42em solid transparent;border-bottom:.42em solid transparent;border-left:.66em solid currentColor;margin-left:.12em;}'
     ].join('\n');
 
     document.head.appendChild(style);
