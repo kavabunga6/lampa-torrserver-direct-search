@@ -95,3 +95,9 @@ test('fallback poster uses a neutral no-image SVG', () => {
   assert.match(svg, /<rect x="101" y="176" width="98" height="98"/);
   assert.doesNotMatch(svg, /Very Long Movie Title That Should Wrap Nicely Inside The Poster 1080p WEB-DL/);
 });
+
+test('formats torrent peer numbers compactly', () => {
+  assert.equal(plugin.formatNumber(235), '235');
+  assert.equal(plugin.formatNumber(1200), '1.2k');
+  assert.equal(plugin.formatNumber(12500), '13k');
+});

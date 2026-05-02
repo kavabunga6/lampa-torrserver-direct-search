@@ -740,12 +740,7 @@
 
   function createTorrentCardHtml(data) {
     var title = data.Title || data.title || '';
-    var meta = [];
-
-    if (data.size) meta.push(data.size);
-    if (!isNaN(data.Seeders)) meta.push('S: ' + data.Seeders);
-    if (!isNaN(data.Peers)) meta.push('P: ' + data.Peers);
-    if (data.Tracker) meta.push(data.Tracker);
+    var meta = compactTorrentMeta(data);
 
     var html = $(
       '<div class="selector card card--loaded ts-direct-search-card">' +
@@ -753,12 +748,16 @@
           '<img class="card__img" alt="">' +
         '</div>' +
         '<div class="card__title ts-direct-search-card__title"></div>' +
-        '<div class="ts-direct-search-card__meta"></div>' +
+        '<div class="ts-direct-search-card__meta">' +
+          '<span class="ts-direct-search-card__size"></span>' +
+          '<span class="ts-direct-search-card__peers"></span>' +
+        '</div>' +
       '</div>'
     );
 
     html.find('.ts-direct-search-card__title').text(title);
-    html.find('.ts-direct-search-card__meta').text(meta.join(' / '));
+    html.find('.ts-direct-search-card__size').text(meta.size);
+    html.find('.ts-direct-search-card__peers').text(meta.peers);
     html.find('.card__img').attr('src', data.poster || data.img || buildPoster(title, data.Tracker));
     html.css({
       marginRight: '1em'
@@ -785,6 +784,16 @@
       fontSize: '0.9em',
       opacity: '0.65',
       whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      display: 'flex',
+      gap: '0.45em',
+      alignItems: 'center'
+    });
+    html.find('.ts-direct-search-card__size').css({
+      flexShrink: '0'
+    });
+    html.find('.ts-direct-search-card__peers').css({
       overflow: 'hidden',
       textOverflow: 'ellipsis'
     });
@@ -891,8 +900,8 @@
     if (year) meta.push(year);
     if (tmdb.vote_average) meta.push(Number(tmdb.vote_average).toFixed(1));
     if (card.size) meta.push(card.size);
-    if (!isNaN(card.Seeders)) meta.push('S: ' + card.Seeders);
-    if (!isNaN(card.Peers)) meta.push('P: ' + card.Peers);
+    if (!isNaN(card.Seeders)) meta.push('Сиды: ' + card.Seeders);
+    if (!isNaN(card.Peers)) meta.push('Пиры: ' + card.Peers);
     if (card.Tracker) meta.push(card.Tracker);
     if (card.CategoryDesc) meta.push(card.CategoryDesc);
 
@@ -906,6 +915,28 @@
       meta: meta.join('  •  '),
       description: description.join('\n')
     };
+  }
+
+  function compactTorrentMeta(data) {
+    var size = data.size || '';
+    var peers = [];
+
+    if (!isNaN(data.Seeders)) peers.push('↑ ' + formatNumber(data.Seeders));
+    if (!isNaN(data.Peers)) peers.push('↓ ' + formatNumber(data.Peers));
+
+    return {
+      size: size,
+      peers: peers.join('   ')
+    };
+  }
+
+  function formatNumber(value) {
+    value = parseInt(value, 10);
+
+    if (isNaN(value)) return '0';
+    if (value >= 1000) return (value / 1000).toFixed(value >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k';
+
+    return value + '';
   }
 
   function injectFullStyles() {
@@ -939,6 +970,7 @@
       buildPoster: buildPoster,
       cleanPosterQuery: cleanPosterQuery,
       formatSearchResults: formatSearchResults,
+      formatNumber: formatNumber,
       normalizeResults: normalizeResults
     };
   }
