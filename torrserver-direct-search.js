@@ -7,6 +7,7 @@
   var source;
   var menu_button;
   var source_registered = false;
+  var menu_listener_registered = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -27,7 +28,7 @@
 
     addSettings();
     buildSource();
-    addMenuButton();
+    scheduleMenuButton();
     syncGlobalSource();
 
     Lampa.Storage.listener.follow('change', function (event) {
@@ -109,12 +110,34 @@
   function addMenuButton() {
     if (menu_button || !Lampa.Menu || !Lampa.Search) return;
 
-    menu_button = Lampa.Menu.addButton(icon, 'TS поиск', function () {
-      Lampa.Search.open({
-        sources: [source],
-        input: ''
+    try {
+      menu_button = Lampa.Menu.addButton(icon, 'TS поиск', function () {
+        Lampa.Search.open({
+          sources: [source],
+          input: ''
+        });
       });
-    });
+    } catch (error) {
+      menu_button = null;
+      return false;
+    }
+
+    return true;
+  }
+
+  function scheduleMenuButton() {
+    if (addMenuButton()) return;
+
+    if (!menu_listener_registered && Lampa.Listener && Lampa.Listener.follow) {
+      menu_listener_registered = true;
+      Lampa.Listener.follow('menu', function (event) {
+        if (event.type === 'end' || event.type === 'start') addMenuButton();
+      });
+    }
+
+    setTimeout(function () {
+      addMenuButton();
+    }, 1000);
   }
 
   function buildSource() {
