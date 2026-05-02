@@ -263,11 +263,20 @@
 
     requestTorrServer(query, function (json) {
       if (!Array.isArray(json)) {
+        logDebug('search response is not an array', json);
         fail();
         return;
       }
 
-      done(normalizeResults(json));
+      var normalized = normalizeResults(json);
+      logDebug('search complete', {
+        query: query,
+        raw: json.length,
+        normalized: normalized.length,
+        url: getTorrServerUrl(),
+        endpoint: Lampa.Storage.field(PLUGIN_ID + '_endpoint') || DEFAULT_ENDPOINT
+      });
+      done(normalized);
     }, fail);
   }
 
@@ -308,6 +317,12 @@
     request.call(network, url, done, fail);
   }
 
+  function logDebug(message, data) {
+    if (typeof console !== 'undefined' && console.log) {
+      console.log(PLUGIN_NAME + ': ' + message, data || '');
+    }
+  }
+
   function normalizeResults(items) {
     var checked_at = Date.now();
 
@@ -323,8 +338,8 @@
         Size: item.Size || item.size || 0,
         size: normalizeSize(item.Size || item.size || 0),
         PublishDate: lampaUtils().strToTime(item.CreateDate || item.createDate || item.PublishDate || item.publishDate || ''),
-        Seeders: parseInt(item.Seed || item.Seeders || item.seeders || 0, 10),
-        Peers: parseInt(item.Peer || item.Peers || item.peers || 0, 10),
+        Seeders: parseInt(item.Seed || item.seed || item.Seeders || item.seeders || 0, 10),
+        Peers: parseInt(item.Peer || item.peer || item.Peers || item.peers || 0, 10),
         MagnetUri: link,
         Link: link,
         CategoryDesc: item.Categories || item.categories || item.CategoryDesc || '',
@@ -443,19 +458,10 @@
 
   TorrentResultCard.prototype.create = function () {
     var data = this.data;
-    var template;
 
-    try {
-      template = Lampa.Template.js('card_parser', data);
-    } catch (error) {
-      template = $('<div class="card-parser"><div class="card-parser__title"></div><div class="card-parser__line"></div></div>');
-      template.find('.card-parser__title').text(data.Title || data.title || '');
-      template.find('.card-parser__line').text((data.Tracker || 'TorrServer') + ' / ' + (data.size || ''));
-    }
-
-    this.html = template && template.on ? template : $(template || document.createElement('div'));
-    this.html.addClass('card-parser ts-direct-search-card');
+    this.html = createTorrentCardHtml(data);
     this.html.attr('data-hash', data.hash || '');
+    this.html.card_data = data;
     this.html[0].card_data = data;
     this.html.on('visible', this.emit.bind(this, 'visible'));
     this.html.on('hover:focus', this.emit.bind(this, 'focus', this.html, data));
@@ -475,6 +481,52 @@
     if (this.html) this.html.remove();
     this.emit('destroy');
   };
+
+  function createTorrentCardHtml(data) {
+    var title = data.Title || data.title || '';
+    var meta = [];
+
+    if (data.size) meta.push(data.size);
+    if (!isNaN(data.Seeders)) meta.push('S: ' + data.Seeders);
+    if (!isNaN(data.Peers)) meta.push('P: ' + data.Peers);
+    if (data.Tracker) meta.push(data.Tracker);
+
+    var html = $(
+      '<div class="selector card-parser ts-direct-search-card">' +
+        '<div class="ts-direct-search-card__title"></div>' +
+        '<div class="ts-direct-search-card__meta"></div>' +
+      '</div>'
+    );
+
+    html.find('.ts-direct-search-card__title').text(title);
+    html.find('.ts-direct-search-card__meta').text(meta.join(' / '));
+    html.css({
+      width: '22em',
+      minHeight: '7.2em',
+      marginRight: '1em',
+      padding: '1em',
+      borderRadius: '0.45em',
+      background: 'rgba(255,255,255,0.08)',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
+    });
+    html.find('.ts-direct-search-card__title').css({
+      fontSize: '1.15em',
+      lineHeight: '1.25',
+      maxHeight: '3.8em',
+      overflow: 'hidden'
+    });
+    html.find('.ts-direct-search-card__meta').css({
+      marginTop: '0.75em',
+      fontSize: '0.9em',
+      opacity: '0.65',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    });
+
+    return html;
+  }
 
   if (typeof window !== 'undefined') boot();
 

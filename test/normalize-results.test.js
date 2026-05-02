@@ -42,3 +42,25 @@ test('builds TorrServer URLs without double slashes', () => {
 
   assert.equal(url, 'http://torrserver.home/torznab/search/?query=matrix%20reloaded');
 });
+
+test('normalizes lowercase TorrServer fields', () => {
+  const results = plugin.normalizeResults([
+    {
+      title: 'Matrix Reloaded',
+      size: '8.0 GCiB',
+      createDate: '2024-01-02T03:04:05+03:00',
+      tracker: 'Prowlarr',
+      link: 'http://torrserver.home/dl/matrix-reloaded.torrent',
+      seed: 5,
+      peer: 2,
+      categories: 'Movies'
+    }
+  ]);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].Title, 'Matrix Reloaded');
+  assert.equal(results[0].MagnetUri, 'http://torrserver.home/dl/matrix-reloaded.torrent');
+  assert.equal(results[0].Tracker, 'Prowlarr');
+  assert.equal(results[0].Seeders, 5);
+  assert.equal(results[0].Peers, 2);
+});
