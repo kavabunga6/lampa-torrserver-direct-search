@@ -9,6 +9,8 @@
   var menu_button;
   var source_registered = false;
   var menu_listener_registered = false;
+  var torrent_return_active = false;
+  var modal_listener_registered = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -461,10 +463,12 @@
   }
 
   function prepareTorrentReturn() {
+    torrent_return_active = true;
+    watchTorrentModalClose();
+
     if (Lampa.Torrent && Lampa.Torrent.back) {
       Lampa.Torrent.back(function () {
-        closeTorrentModal();
-        restoreFullController();
+        finishTorrentReturn(true);
       });
     }
 
@@ -472,12 +476,27 @@
       Lampa.Torrent.opened(function () {
         if (Lampa.Player && Lampa.Player.callback) {
           Lampa.Player.callback(function () {
-            closeTorrentModal();
-            restoreFullController();
+            finishTorrentReturn(true);
           });
         }
       });
     }
+  }
+
+  function watchTorrentModalClose() {
+    if (modal_listener_registered || !Lampa.Modal || !Lampa.Modal.listener || !Lampa.Modal.listener.follow) return;
+
+    modal_listener_registered = true;
+    Lampa.Modal.listener.follow('close', function () {
+      if (torrent_return_active) finishTorrentReturn(false);
+    });
+  }
+
+  function finishTorrentReturn(close_modal) {
+    torrent_return_active = false;
+
+    if (close_modal) closeTorrentModal();
+    restoreFullController();
   }
 
   function closeTorrentModal() {
