@@ -25,7 +25,7 @@ test('normalizes TorrServer Torznab items with download links', () => {
   assert.equal(results[0].Peers, 3);
   assert.equal(results[0].size, '12,4 ГБ');
   assert.equal(results[0].CategoryDesc, 'Movies');
-  assert.match(results[0].poster, /^data:image\/svg\+xml;charset=UTF-8,/);
+  assert.equal(results[0].poster, './img/img_broken.svg');
   assert.equal(results[0].img, results[0].poster);
 });
 
@@ -89,19 +89,10 @@ test('cleans torrent release names for optional poster lookup', () => {
   assert.equal(plugin.cleanPosterQuery('Matrix Reloaded [HDRip] 720p.mkv'), 'Matrix Reloaded');
 });
 
-test('fallback poster uses a neutral no-image SVG', () => {
+test('fallback poster uses Lampa built-in broken image', () => {
   const poster = plugin.buildPoster('Very Long Movie Title That Should Wrap Nicely Inside The Poster 1080p WEB-DL', 'TorrServer');
-  const svg = decodeURIComponent(poster.replace('data:image/svg+xml;charset=UTF-8,', ''));
 
-  assert.match(svg, /fill="#3f3f3f"/);
-  assert.match(svg, /<rect x="101" y="176" width="98" height="98"/);
-  assert.doesNotMatch(svg, /Very Long Movie Title That Should Wrap Nicely Inside The Poster 1080p WEB-DL/);
-});
-
-test('formats torrent peer numbers compactly', () => {
-  assert.equal(plugin.formatNumber(235), '235');
-  assert.equal(plugin.formatNumber(1200), '1.2k');
-  assert.equal(plugin.formatNumber(12500), '13k');
+  assert.equal(poster, './img/img_broken.svg');
 });
 
 test('localizes TorrServer binary size labels', () => {

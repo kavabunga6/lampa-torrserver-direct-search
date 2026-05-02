@@ -9,7 +9,6 @@
   var menu_button;
   var source_registered = false;
   var menu_listener_registered = false;
-  var styles_injected = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -227,17 +226,6 @@
       },
       onCancel: function () {
         network.clear();
-      },
-      onRecall: function (data) {
-        if (!data || !data[0] || !data[0].results) return;
-
-        data[0].results.forEach(function (item) {
-          item.params = {
-            createInstance: function (card_data) {
-              return new TorrentResultCard(card_data);
-            }
-          };
-        });
       },
       onSelect: function (params, close) {
         close();
@@ -686,11 +674,9 @@
       item.Title = shortText(item.Title, 110);
       item.title = item.Title;
       item.name = item.Title;
-      item.params = {
-        createInstance: function (data) {
-          return new TorrentResultCard(data);
-        }
-      };
+      item.original_title = item.Tracker || 'TorrServer';
+      item.source = 'torrserver';
+      item.method = 'movie';
 
       return item;
     });
@@ -940,31 +926,7 @@
   }
 
   function buildPoster(title, tracker) {
-    var svg = [
-      '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">',
-      '<rect width="300" height="450" fill="#3f3f3f"/>',
-      '<g opacity="0.36" fill="none" stroke="#8a8a8a" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">',
-      '<rect x="101" y="176" width="98" height="98"/>',
-      '<path d="M112 244l37-21 31 20 19-13"/>',
-      '<path d="M112 263l37-21 31 20 19-13"/>',
-      '<path d="M112 225l22-13 15 10"/>',
-      '</g>',
-      '</svg>'
-    ].join('');
-
-    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
-  }
-
-  function escapeSvg(text) {
-    return (text || '').replace(/[&<>"']/g, function (char) {
-      return {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      }[char];
-    });
+    return './img/img_broken.svg';
   }
 
   function lampaUtils() {
@@ -995,195 +957,6 @@
     };
   }
 
-  function TorrentResultCard(data) {
-    this.data = data;
-    this.components = [];
-    this.html = null;
-  }
-
-  TorrentResultCard.prototype.use = function (module) {
-    if (this.components.indexOf(module) < 0) this.components.push(module);
-  };
-
-  TorrentResultCard.prototype.emit = function (event) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    var name = event.charAt(0).toUpperCase() + event.slice(1);
-    var only = null;
-
-    this.components.forEach(function (component) {
-      if (typeof component['only' + name] === 'function') only = component['only' + name];
-    });
-
-    if (only) return only.apply(this, args);
-
-    this.components.forEach(function (component) {
-      if (typeof component['on' + name] === 'function') component['on' + name].apply(this, args);
-    }, this);
-  };
-
-  TorrentResultCard.prototype.create = function () {
-    var data = this.data;
-
-    injectCardStyles();
-
-    this.html = createTorrentCardHtml(data);
-    this.html.attr('data-hash', data.hash || '');
-    this.html.card_data = data;
-    this.html[0].card_data = data;
-    this.html.on('visible', this.emit.bind(this, 'visible'));
-    this.html.on('hover:focus', this.onFocus.bind(this));
-    this.html.on('hover:touch', this.onTouch.bind(this));
-    this.html.on('hover:hover', this.onHover.bind(this));
-    this.html.on('hover:enter', this.onEnter.bind(this));
-    this.html.on('hover:long', this.emit.bind(this, 'long', this.html, data));
-
-    this.emit('create');
-  };
-
-  TorrentResultCard.prototype.onFocus = function () {
-    $('.ts-direct-search-card').removeClass('focus hover');
-    this.html.addClass('focus');
-    this.emit('focus', this.html, this.data);
-  };
-
-  TorrentResultCard.prototype.onHover = function () {
-    $('.ts-direct-search-card').removeClass('hover');
-    this.html.addClass('hover');
-    this.emit('hover', this.html, this.data);
-  };
-
-  TorrentResultCard.prototype.onTouch = function () {
-    pressCard(this.html);
-    this.emit('touch', this.html, this.data);
-  };
-
-  TorrentResultCard.prototype.onEnter = function () {
-    pressCard(this.html);
-    if (Lampa.Controller && Lampa.Controller.toContent) Lampa.Controller.toContent();
-    this.emit('enter', this.html, this.data);
-  };
-
-  TorrentResultCard.prototype.render = function (js) {
-    return js ? this.html : $(this.html);
-  };
-
-  TorrentResultCard.prototype.destroy = function () {
-    if (this.html) this.html.remove();
-    this.emit('destroy');
-  };
-
-  function pressCard(card) {
-    card.addClass('ts-direct-search-card--pressed');
-
-    setTimeout(function () {
-      card.removeClass('ts-direct-search-card--pressed');
-    }, 140);
-  }
-
-  function injectCardStyles() {
-    if (styles_injected) return;
-    styles_injected = true;
-
-    var style = document.createElement('style');
-    style.id = 'ts-direct-search-card-styles';
-    style.textContent = [
-      '.ts-direct-search-card{transition:transform .12s ease, opacity .12s ease; transform-origin:center top;}',
-      '.ts-direct-search-card .card__view{overflow:visible;}',
-      '.ts-direct-search-card .card__img{border-radius:1em;}',
-      '.ts-direct-search-card.focus .card__view::after,',
-      '.ts-direct-search-card.hover .card__view::after{content:"";position:absolute;top:-.5em;left:-.5em;right:-.5em;bottom:-.5em;border:.3em solid #fff;border-radius:1.4em;z-index:-1;pointer-events:none;}',
-      '.ts-direct-search-card.hover .card__view::after{border-color:rgba(255,255,255,.5);}',
-      '.ts-direct-search-card--pressed{transform:scale(.965);opacity:.82;}'
-    ].join('\n');
-
-    document.head.appendChild(style);
-  }
-
-  function createTorrentCardHtml(data) {
-    var title = data.Title || data.title || '';
-    var meta = compactTorrentMeta(data);
-
-    var html = $(
-      '<div class="selector card card--loaded ts-direct-search-card">' +
-        '<div class="card__view ts-direct-search-card__poster">' +
-          '<img class="card__img" alt="">' +
-        '</div>' +
-        '<div class="card__title ts-direct-search-card__title"></div>' +
-        '<div class="ts-direct-search-card__meta">' +
-          '<span class="ts-direct-search-card__size"></span>' +
-          '<span class="ts-direct-search-card__peers"></span>' +
-        '</div>' +
-      '</div>'
-    );
-
-    html.find('.ts-direct-search-card__title').text(title);
-    html.find('.ts-direct-search-card__size').text(meta.size);
-    html.find('.ts-direct-search-card__peers').text(meta.peers);
-    html.find('.card__img').attr('src', data.poster || data.img || buildPoster(title, data.Tracker));
-    html.css({
-      marginRight: '1em'
-    });
-    html.find('.ts-direct-search-card__poster').css({
-      background: 'rgba(255,255,255,0.08)'
-    });
-    html.find('.card__img').css({
-      width: '100%',
-      height: '100%',
-      display: 'block',
-      objectFit: 'cover',
-      borderRadius: '1em'
-    });
-    html.find('.ts-direct-search-card__title').css({
-      marginTop: '0.65em',
-      fontSize: '1em',
-      lineHeight: '1.25',
-      maxHeight: '2.6em',
-      overflow: 'hidden'
-    });
-    html.find('.ts-direct-search-card__meta').css({
-      marginTop: '0.75em',
-      fontSize: '0.9em',
-      opacity: '0.65',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      display: 'flex',
-      gap: '0.45em',
-      alignItems: 'center'
-    });
-    html.find('.ts-direct-search-card__size').css({
-      flexShrink: '0'
-    });
-    html.find('.ts-direct-search-card__peers').css({
-      overflow: 'hidden',
-      textOverflow: 'ellipsis'
-    });
-
-    return html;
-  }
-
-  function compactTorrentMeta(data) {
-    var size = data.size || '';
-    var peers = [];
-
-    if (!isNaN(data.Seeders)) peers.push('↑ ' + formatNumber(data.Seeders));
-    if (!isNaN(data.Peers)) peers.push('↓ ' + formatNumber(data.Peers));
-
-    return {
-      size: size,
-      peers: peers.join('   ')
-    };
-  }
-
-  function formatNumber(value) {
-    value = parseInt(value, 10);
-
-    if (isNaN(value)) return '0';
-    if (value >= 1000) return (value / 1000).toFixed(value >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k';
-
-    return value + '';
-  }
-
   if (typeof window !== 'undefined') boot();
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -1193,7 +966,6 @@
       buildPoster: buildPoster,
       cleanPosterQuery: cleanPosterQuery,
       formatSearchResults: formatSearchResults,
-      formatNumber: formatNumber,
       fullRouteCard: fullRouteCard,
       normalizeSizeLabel: normalizeSizeLabel,
       normalizeResults: normalizeResults,
