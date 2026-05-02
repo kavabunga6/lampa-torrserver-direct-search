@@ -227,7 +227,7 @@
         });
       },
       params: {
-        lazy: true,
+        lazy: false,
         nofound: 'search_nofound',
         start_typing: 'search_start_typing'
       }
@@ -342,6 +342,8 @@
         Peers: parseInt(item.Peer || item.peer || item.Peers || item.peers || 0, 10),
         MagnetUri: link,
         Link: link,
+        poster: buildPoster(title, item.Tracker || item.tracker || item.Indexer || item.indexer || ''),
+        img: buildPoster(title, item.Tracker || item.tracker || item.Indexer || item.indexer || ''),
         CategoryDesc: item.Categories || item.categories || item.CategoryDesc || '',
         bitrate: '-',
         checked_at: checked_at,
@@ -400,6 +402,45 @@
     text = text || '';
     if (lampaUtils().shortText) return lampaUtils().shortText(text, len);
     return text.length > len ? text.slice(0, len - 3) + '...' : text;
+  }
+
+  function buildPoster(title, tracker) {
+    var label = (title || 'TS').replace(/[^\wа-яА-ЯёЁ]+/g, ' ').trim().slice(0, 42);
+    var source = (tracker || 'TorrServer').replace(/[^\wа-яА-ЯёЁ]+/g, ' ').trim().slice(0, 20);
+    var hue = Math.abs(parseInt(lampaUtils().hash(title || source || 'TorrServer'), 10)) % 360;
+    var svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450" viewBox="0 0 300 450">',
+      '<defs>',
+      '<linearGradient id="g" x1="0" x2="1" y1="0" y2="1">',
+      '<stop offset="0" stop-color="hsl(' + hue + ',65%,34%)"/>',
+      '<stop offset="1" stop-color="hsl(' + ((hue + 55) % 360) + ',70%,15%)"/>',
+      '</linearGradient>',
+      '</defs>',
+      '<rect width="300" height="450" fill="url(#g)"/>',
+      '<rect x="22" y="22" width="256" height="406" rx="14" fill="rgba(0,0,0,0.18)" stroke="rgba(255,255,255,0.24)" stroke-width="2"/>',
+      '<text x="150" y="72" fill="rgba(255,255,255,0.72)" font-family="Arial, Helvetica, sans-serif" font-size="24" text-anchor="middle">TorrServer</text>',
+      '<text x="150" y="210" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" text-anchor="middle">',
+      escapeSvg(label),
+      '</text>',
+      '<text x="150" y="360" fill="rgba(255,255,255,0.68)" font-family="Arial, Helvetica, sans-serif" font-size="20" text-anchor="middle">',
+      escapeSvg(source),
+      '</text>',
+      '</svg>'
+    ].join('');
+
+    return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+  }
+
+  function escapeSvg(text) {
+    return (text || '').replace(/[&<>"']/g, function (char) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char];
+    });
   }
 
   function lampaUtils() {
@@ -492,28 +533,41 @@
     if (data.Tracker) meta.push(data.Tracker);
 
     var html = $(
-      '<div class="selector card-parser ts-direct-search-card">' +
-        '<div class="ts-direct-search-card__title"></div>' +
+      '<div class="selector card card--loaded ts-direct-search-card">' +
+        '<div class="card__view ts-direct-search-card__poster">' +
+          '<img class="card__img" alt="">' +
+        '</div>' +
+        '<div class="card__title ts-direct-search-card__title"></div>' +
         '<div class="ts-direct-search-card__meta"></div>' +
       '</div>'
     );
 
     html.find('.ts-direct-search-card__title').text(title);
     html.find('.ts-direct-search-card__meta').text(meta.join(' / '));
+    html.find('.card__img').attr('src', data.poster || data.img || buildPoster(title, data.Tracker));
     html.css({
-      width: '22em',
-      minHeight: '7.2em',
+      width: '11.5em',
       marginRight: '1em',
-      padding: '1em',
+      boxSizing: 'border-box'
+    });
+    html.find('.ts-direct-search-card__poster').css({
+      width: '11.5em',
+      height: '17.25em',
       borderRadius: '0.45em',
-      background: 'rgba(255,255,255,0.08)',
-      boxSizing: 'border-box',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      background: 'rgba(255,255,255,0.08)'
+    });
+    html.find('.card__img').css({
+      width: '100%',
+      height: '100%',
+      display: 'block',
+      objectFit: 'cover'
     });
     html.find('.ts-direct-search-card__title').css({
-      fontSize: '1.15em',
+      marginTop: '0.65em',
+      fontSize: '1em',
       lineHeight: '1.25',
-      maxHeight: '3.8em',
+      maxHeight: '2.6em',
       overflow: 'hidden'
     });
     html.find('.ts-direct-search-card__meta').css({

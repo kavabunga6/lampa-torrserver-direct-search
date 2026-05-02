@@ -24,6 +24,8 @@ test('normalizes TorrServer Torznab items with download links', () => {
   assert.equal(results[0].Seeders, 12);
   assert.equal(results[0].Peers, 3);
   assert.equal(results[0].CategoryDesc, 'Movies');
+  assert.match(results[0].poster, /^data:image\/svg\+xml;charset=UTF-8,/);
+  assert.equal(results[0].img, results[0].poster);
 });
 
 test('drops items without a title or playable link', () => {
