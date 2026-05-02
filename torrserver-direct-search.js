@@ -178,24 +178,7 @@
             return (b.Seeders || 0) - (a.Seeders || 0);
           });
 
-          var results = items.slice(0, 40);
-          results.forEach(function (item) {
-            item.Title = shortText(item.Title, 110);
-            item.title = item.Title;
-            item.name = item.Title;
-            item.params = {
-              createInstance: function (data) {
-                return new TorrentResultCard(data);
-              }
-            };
-          });
-
-          done(results.length ? [{
-            title: 'TorrServer',
-            results: results,
-            total: items.length,
-            total_pages: Math.ceil(items.length / 40)
-          }] : []);
+          done(formatSearchResults(items));
         }, function () {
           done([]);
         });
@@ -212,13 +195,6 @@
               return new TorrentResultCard(card_data);
             }
           };
-        });
-      },
-      onMore: function (params, close) {
-        close();
-        Lampa.Search.open({
-          sources: [source],
-          input: params.query || ''
         });
       },
       onSelect: function (params, close) {
@@ -355,6 +331,29 @@
     }).filter(function (item) {
       return item.Title && item.MagnetUri;
     });
+  }
+
+  function formatSearchResults(items) {
+    var results = items.map(function (item) {
+      item.Title = shortText(item.Title, 110);
+      item.title = item.Title;
+      item.name = item.Title;
+      item.params = {
+        createInstance: function (data) {
+          return new TorrentResultCard(data);
+        }
+      };
+
+      return item;
+    });
+
+    return results.length ? [{
+      title: 'TorrServer',
+      results: results,
+      total: results.length,
+      total_pages: 1,
+      page: 1
+    }] : [];
   }
 
   function getTorrServerUrl() {
@@ -634,6 +633,7 @@
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       buildUrl: buildUrl,
+      formatSearchResults: formatSearchResults,
       normalizeResults: normalizeResults
     };
   }

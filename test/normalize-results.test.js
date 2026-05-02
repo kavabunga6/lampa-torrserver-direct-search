@@ -66,3 +66,17 @@ test('normalizes lowercase TorrServer fields', () => {
   assert.equal(results[0].Seeders, 5);
   assert.equal(results[0].Peers, 2);
 });
+
+test('formats TorrServer search result as a single non-paginated group', () => {
+  const items = Array.from({ length: 45 }, (_, index) => ({
+    Title: `Matrix result ${index + 1}`,
+    Link: `http://torrserver.home/dl/${index + 1}.torrent`
+  }));
+  const groups = plugin.formatSearchResults(items);
+
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].results.length, 45);
+  assert.equal(groups[0].total, 45);
+  assert.equal(groups[0].total_pages, 1);
+  assert.equal(groups[0].page, 1);
+});
