@@ -7,6 +7,8 @@
   var original_available_discovery = null;
   var original_add_source = null;
   var original_open = null;
+  var discovered = {};
+  var dynamic_settings = {};
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -87,6 +89,8 @@
       }
     });
 
+    refreshDynamicSettings();
+
     Lampa.SettingsApi.addParam({
       component: PLUGIN_ID,
       param: {
@@ -114,13 +118,17 @@
     if (Lampa.Api.availableDiscovery) {
       original_available_discovery = Lampa.Api.availableDiscovery;
       Lampa.Api.availableDiscovery = function () {
-        return filterSources(original_available_discovery.apply(this, arguments), getBlockedRules());
+        var sources = original_available_discovery.apply(this, arguments);
+        rememberSources(sources);
+        return filterSources(sources, getBlockedRules());
       };
     }
 
     if (Lampa.Search.addSource) {
       original_add_source = Lampa.Search.addSource;
       Lampa.Search.addSource = function (source) {
+        rememberSources([source]);
+
         if (isBlockedSource(source, getBlockedRules())) {
           log('blocked addSource', sourceTitle(source));
           return source;
@@ -133,44 +141,57 @@
     if (Lampa.Search.open) {
       original_open = Lampa.Search.open;
       Lampa.Search.open = function (params) {
+        rememberSources((params && params.sources || []).concat(params && params.additional || []));
         return original_open.call(this, filterOpenParams(params, getBlockedRules()));
       };
     }
   }
 
-  function filterOpenParams(params, rules) {
-    if (!params) return params;
+  function refreshDynamicSettings() {
+    var saved = storageField(PLUGIN_ID + '_known_sources', {});
+    var list = [];
 
-    var filtered = {};
+    Object.keys(saved || {}).forEach(function (key) {
+      if (saved[key] && saved[key].title) {
+        discovered[key] = saved[key];
+      }
+    });
 
-    for (var key in params) {
-      filtered[key] = params[key];
-    }
+    list = Object.keys(discovered).map(function (key) {
+      return discovered[key];
+    }).sort(function (a, b) {
+      return a.title.localeCompare(b.title);
+    });
 
-    if (Array.isArray(filtered.sources)) {
-      filtered.sources = filterSources(filtered.sources, rules);
-    }
+    list.forEach(function (item) {
+      if (item.legacy) return;
+      if (dynamic_settings[item.key]) return;
 
-    if (Array.isArray(filtered.additional)) {
-      filtered.additional = filterSources(filtered.additional, rules);
-    }
+      dynamic_settings[item.key] = true;
 
-    return filtered;
-  }
-
-  function filterSources(sources, rules) {
-    if (!Array.isArray(sources)) return sources;
-
-    return sources.filter(function (source) {
-      return !isBlockedSource(source, rules);
+      Lampa.SettingsApi.addParam({
+        component: PLUGIN_ID,
+        param: {
+          name: PLUGIN_ID + '_source_' + item.key,
+          type: 'trigger',
+          default: true
+        },
+        field: {
+          name: 'Показывать ' + item.title,
+          description: 'Источник будет исключен из поиска, если выключить этот пункт.'
+        }
+      });
     });
   }
 
   function isBlockedSource(source, rules) {
     var title = sourceTitle(source);
+    var key = sourceKey(source);
+
+    if (rules.disabled_keys.indexOf(key) !== -1) return true;
     if (!title) return false;
 
-    return rules.some(function (rule) {
+    return rules.disabled_names.some(function (rule) {
       return rule && title.indexOf(rule) !== -1;
     });
   }
@@ -190,32 +211,160 @@
     return values.filter(Boolean).join(' ').toLowerCase();
   }
 
-  function getBlockedRules() {
-    if (!storageField(PLUGIN_ID + '_enabled', true)) return [];
+  function sourceKey(source) {
+    var title = sourceTitle(source) || 'unknown';
+    return title
+      .replace(/[^a-zа-яё0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 80) || 'unknown';
+  }
 
-    var rules = [];
+  function sourceDisplayTitle(source) {
+    if (!source) return '';
+
+    return source.title || source.name || source.source || source.id || source.component || String(source);
+  }
+
+  function rememberSources(sources) {
+    if (!Array.isArray(sources)) return;
+
+    var changed = false;
+
+    sources.forEach(function (source) {
+      var title = sourceDisplayTitle(source);
+      var key = sourceKey(source);
+
+      if (!title || discovered[key]) return;
+
+      discovered[key] = {
+        key: key,
+        title: title
+      };
+      changed = true;
+    });
+
+    if (changed) {
+      if (typeof window !== 'undefined' && window.Lampa && Lampa.Storage) {
+        Lampa.Storage.set(PLUGIN_ID + '_known_sources', discovered);
+      }
+
+      refreshDynamicSettings();
+    }
+  }
+
+  function getRules() {
+    if (!storageField(PLUGIN_ID + '_enabled', true)) return {
+      disabled_keys: [],
+      disabled_names: []
+    };
+
+    var rules = {
+      disabled_keys: [],
+      disabled_names: []
+    };
 
     if (!storageField(PLUGIN_ID + '_show_cub', false)) {
-      rules = rules.concat(['cub', 'куб']);
+      rules.disabled_names = rules.disabled_names.concat(['cub', 'куб']);
     }
 
     if (!storageField(PLUGIN_ID + '_show_ai', false)) {
-      rules = rules.concat(['ai-assistant', 'ai assistant', 'ai-ассистент', 'ai ассистент', 'ассистент']);
+      rules.disabled_names = rules.disabled_names.concat(['ai-assistant', 'ai assistant', 'ai-ассистент', 'ai ассистент', 'ассистент']);
     }
 
     if (!storageField(PLUGIN_ID + '_show_tmdb', true)) {
-      rules = rules.concat(['tmdb', 'тмдб']);
+      rules.disabled_names = rules.disabled_names.concat(['tmdb', 'тмдб']);
     }
 
-    var custom = storageField(PLUGIN_ID + '_custom', '');
-    if (custom) {
-      custom.split(',').forEach(function (rule) {
-        rule = rule.trim().toLowerCase();
-        if (rule) rules.push(rule);
-      });
-    }
+    Object.keys(discovered).forEach(function (key) {
+      if (!storageField(PLUGIN_ID + '_source_' + key, true)) {
+        rules.disabled_keys.push(key);
+      }
+    });
+
+    var saved = storageField(PLUGIN_ID + '_known_sources', {});
+    Object.keys(saved || {}).forEach(function (key) {
+      if (!storageField(PLUGIN_ID + '_source_' + key, true)) {
+        rules.disabled_keys.push(key);
+      }
+    });
+
+    rules.disabled_keys = unique(rules.disabled_keys);
+    rules.disabled_names = unique(rules.disabled_names);
 
     return rules;
+  }
+
+  function normalizeRules(rules) {
+    if (Array.isArray(rules)) {
+      return {
+        disabled_keys: [],
+        disabled_names: rules
+      };
+    }
+
+    return rules || {
+      disabled_keys: [],
+      disabled_names: []
+    };
+  }
+
+  function unique(list) {
+    var seen = {};
+
+    return list.filter(function (item) {
+      if (seen[item]) return false;
+
+      seen[item] = true;
+      return true;
+    });
+  }
+
+  function getBlockedRules() {
+    var rules = getRules();
+    var custom = storageField(PLUGIN_ID + '_custom', '');
+
+    if (!custom) return rules;
+
+    custom.split(',').forEach(function (rule) {
+      rule = rule.trim().toLowerCase();
+      if (rule) rules.disabled_names.push(rule);
+    });
+
+    rules.disabled_names = unique(rules.disabled_names);
+
+    return rules;
+  }
+
+  function filterSources(sources, rules) {
+    rules = normalizeRules(rules);
+
+    if (!Array.isArray(sources)) return sources;
+
+    return sources.filter(function (source) {
+      return !isBlockedSource(source, rules);
+    });
+  }
+
+  function filterOpenParams(params, rules) {
+    rules = normalizeRules(rules);
+
+    if (!params) return params;
+
+    var filtered = {};
+
+    for (var key in params) {
+      filtered[key] = params[key];
+    }
+
+    if (Array.isArray(filtered.sources)) {
+      filtered.sources = filterSources(filtered.sources, rules);
+    }
+
+    if (Array.isArray(filtered.additional)) {
+      filtered.additional = filterSources(filtered.additional, rules);
+    }
+
+    return filtered;
   }
 
   function storageField(name, fallback) {
@@ -237,7 +386,8 @@
     module.exports = {
       filterOpenParams: filterOpenParams,
       filterSources: filterSources,
-      isBlockedSource: isBlockedSource
+      isBlockedSource: isBlockedSource,
+      sourceKey: sourceKey
     };
   }
 })();

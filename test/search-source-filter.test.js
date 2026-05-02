@@ -3,7 +3,10 @@ const assert = require('node:assert/strict');
 
 const filter = require('../search-source-filter');
 
-const rules = ['cub', 'ai assistant', 'ассистент'];
+const rules = {
+  disabled_keys: [],
+  disabled_names: ['cub', 'ai assistant', 'ассистент']
+};
 
 test('filters CUB and AI assistant sources', () => {
   const sources = [
@@ -45,9 +48,35 @@ test('empty rules keep every source enabled', () => {
     { title: 'AI-ассистент' }
   ];
 
-  assert.deepEqual(filter.filterSources(sources, []).map((source) => source.title), [
+  assert.deepEqual(filter.filterSources(sources, {
+    disabled_keys: [],
+    disabled_names: []
+  }).map((source) => source.title), [
     'TMDB',
     'CUB',
     'AI-ассистент'
   ]);
+});
+
+test('filters any source by stable key', () => {
+  const sources = [
+    { title: 'Custom Parser' },
+    { title: 'TorrServer' }
+  ];
+  const customKey = filter.sourceKey(sources[0]);
+  const filtered = filter.filterSources(sources, {
+    disabled_keys: [customKey],
+    disabled_names: []
+  });
+
+  assert.deepEqual(filtered.map((source) => source.title), ['TorrServer']);
+});
+
+test('still supports legacy array rules', () => {
+  const sources = [
+    { title: 'CUB' },
+    { title: 'TMDB' }
+  ];
+
+  assert.deepEqual(filter.filterSources(sources, ['cub']).map((source) => source.title), ['TMDB']);
 });
