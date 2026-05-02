@@ -471,7 +471,6 @@
           startTorrent(item);
         }
       }],
-      nohide: true,
       onBack: function () {
         restoreFullController();
       }
@@ -489,24 +488,24 @@
   }
 
   function startTorrent(item) {
-    prepareTorrentReturnToList();
+    prepareTorrentReturnToList(item);
     Lampa.Torrent.start(item, {
       title: item.Title || item.title || 'Torrent'
     });
   }
 
-  function prepareTorrentReturnToList() {
+  function prepareTorrentReturnToList(item) {
     if (Lampa.Torrent && Lampa.Torrent.back) {
       Lampa.Torrent.back(function () {
-        restoreTorrentList();
+        restoreTorrentList(item);
       });
     }
   }
 
-  function restoreTorrentList() {
+  function restoreTorrentList(item) {
     setTimeout(function () {
-      if (Lampa.Select && Lampa.Select.render && Lampa.Select.render().hasClass('animate')) {
-        Lampa.Controller.toggle('select');
+      if (item) {
+        openTorrentList(item);
       } else {
         restoreFullController();
       }
