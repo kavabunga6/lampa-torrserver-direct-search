@@ -29,6 +29,7 @@
     network = new Lampa.Reguest();
 
     addSettings();
+    registerFullComponent();
     buildSource();
     scheduleMenuButton();
     syncGlobalSource();
@@ -226,9 +227,7 @@
       },
       onSelect: function (params, close) {
         close();
-        Lampa.Torrent.start(params.element, {
-          title: params.element.Title || params.element.title || params.query || 'Torrent'
-        });
+        openTorrentFull(params.element);
       },
       params: {
         lazy: false,
@@ -236,6 +235,33 @@
         start_typing: 'search_start_typing'
       }
     };
+  }
+
+  function registerFullComponent() {
+    if (Lampa.Component && Lampa.Component.add) {
+      Lampa.Component.add('ts_full', TorrServerFullComponent);
+    }
+  }
+
+  function openTorrentFull(item) {
+    var object = {
+      component: 'ts_full',
+      source: 'torrserver',
+      title: item.Title || item.title || 'TorrServer',
+      card: item,
+      method: 'movie',
+      id: item.hash || lampaUtils().hash(item.Link || item.Title || 'torrserver')
+    };
+
+    if (Lampa.Activity && Lampa.Activity.push) {
+      Lampa.Activity.push(object);
+    } else if (Lampa.Router && Lampa.Router.call) {
+      Lampa.Router.call('ts_full', object);
+    } else {
+      Lampa.Torrent.start(item, {
+        title: object.title
+      });
+    }
   }
 
   function syncGlobalSource() {
@@ -427,6 +453,10 @@
           if (card && card.poster_path) {
             item.poster = Lampa.Api.img(card.poster_path, 'w300');
             item.img = item.poster;
+          }
+
+          if (card) {
+            item.tmdb = card;
           }
 
           oneDone();
@@ -723,6 +753,145 @@
     });
 
     return html;
+  }
+
+  function TorrServerFullComponent(object) {
+    this.object = object || {};
+    this.card = this.object.card || {};
+    this.html = null;
+  }
+
+  TorrServerFullComponent.prototype.create = function () {
+    injectFullStyles();
+
+    var card = this.card;
+    var poster = card.poster || card.img || buildPoster(card.Title || card.title || '', card.Tracker || '');
+    var title = card.Title || card.title || 'TorrServer';
+    var details = torrentDetails(card);
+
+    this.html = $(
+      '<div class="ts-full">' +
+        '<div class="ts-full__poster"><img alt=""></div>' +
+        '<div class="ts-full__body">' +
+          '<div class="ts-full__title"></div>' +
+          '<div class="ts-full__meta"></div>' +
+          '<div class="ts-full__description"></div>' +
+          '<div class="ts-full__actions">' +
+            '<div class="selector ts-full__button ts-full__button--play"><div class="ts-full__button-icon">▶</div><div>Смотреть</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+
+    this.html.find('.ts-full__poster img').attr('src', poster);
+    this.html.find('.ts-full__title').text(title);
+    this.html.find('.ts-full__meta').text(details.meta);
+    this.html.find('.ts-full__description').text(details.description);
+    this.html.find('.ts-full__button--play').on('hover:enter', this.play.bind(this));
+    this.html.find('.ts-full__button--play').on('hover:touch', function () {
+      $(this).addClass('ts-full__button--pressed');
+      setTimeout(function (button) {
+        button.removeClass('ts-full__button--pressed');
+      }, 140, $(this));
+    });
+
+    if (this.activity) {
+      this.activity.loader(false);
+      this.activity.toggle();
+    }
+  };
+
+  TorrServerFullComponent.prototype.start = function () {
+    var html = this.html;
+
+    Lampa.Controller.add('ts_full', {
+      toggle: function () {
+        Lampa.Controller.collectionSet(html);
+        Lampa.Controller.collectionFocus(false, html);
+      },
+      up: function () {},
+      down: function () {},
+      left: function () {
+        Lampa.Controller.toggle('menu');
+      },
+      right: function () {},
+      back: function () {
+        Lampa.Activity.backward();
+      }
+    });
+
+    Lampa.Controller.toggle('ts_full');
+  };
+
+  TorrServerFullComponent.prototype.play = function () {
+    var card = this.card;
+
+    $('.ts-full__button--play').addClass('ts-full__button--pressed');
+    setTimeout(function () {
+      $('.ts-full__button--play').removeClass('ts-full__button--pressed');
+    }, 140);
+
+    Lampa.Torrent.start(card, {
+      title: card.Title || card.title || 'Torrent'
+    });
+  };
+
+  TorrServerFullComponent.prototype.render = function (js) {
+    return js ? this.html : $(this.html);
+  };
+
+  TorrServerFullComponent.prototype.destroy = function () {
+    if (this.html) this.html.remove();
+  };
+
+  function torrentDetails(card) {
+    var meta = [];
+    var description = [];
+    var tmdb = card.tmdb || {};
+    var date = tmdb.release_date || tmdb.first_air_date || '';
+    var year = date ? String(date).slice(0, 4) : '';
+
+    if (year) meta.push(year);
+    if (tmdb.vote_average) meta.push(Number(tmdb.vote_average).toFixed(1));
+    if (card.size) meta.push(card.size);
+    if (!isNaN(card.Seeders)) meta.push('S: ' + card.Seeders);
+    if (!isNaN(card.Peers)) meta.push('P: ' + card.Peers);
+    if (card.Tracker) meta.push(card.Tracker);
+    if (card.CategoryDesc) meta.push(card.CategoryDesc);
+
+    if (tmdb.overview) description.push(tmdb.overview);
+    description.push('Источник: TorrServer');
+    if (card.CreateDate) description.push('Дата: ' + card.CreateDate);
+    else if (card.PublishDate) description.push('Дата: ' + new Date(card.PublishDate).toLocaleDateString());
+    if (card.Link) description.push('Ссылка готова к воспроизведению через TorrServer.');
+
+    return {
+      meta: meta.join('  •  '),
+      description: description.join('\n')
+    };
+  }
+
+  function injectFullStyles() {
+    if (document.getElementById('ts-full-styles')) return;
+
+    var style = document.createElement('style');
+    style.id = 'ts-full-styles';
+    style.textContent = [
+      '.ts-full{min-height:100%;display:flex;gap:4.5em;align-items:flex-start;padding:5em 4em 4em 8.5em;box-sizing:border-box;color:#fff;}',
+      '.ts-full__poster{width:22em;flex-shrink:0;background:#3f3f3f;border-radius:.8em;overflow:hidden;}',
+      '.ts-full__poster img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;}',
+      '.ts-full__body{min-width:0;max-width:64em;padding-top:1em;}',
+      '.ts-full__title{font-size:3.2em;line-height:1.12;margin-bottom:.45em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}',
+      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.68);line-height:1.45;margin-bottom:1.6em;}',
+      '.ts-full__description{font-size:1.25em;line-height:1.55;color:rgba(255,255,255,.72);white-space:pre-line;margin-bottom:2.3em;}',
+      '.ts-full__actions{display:flex;gap:1em;align-items:center;}',
+      '.ts-full__button{height:5.4em;min-width:10.5em;padding:0 1.6em;border-radius:.45em;background:rgba(0,0,0,.42);display:flex;gap:.9em;align-items:center;justify-content:center;font-size:1.05em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
+      '.ts-full__button.focus,.ts-full__button.hover{background:#fff;color:#111;}',
+      '.ts-full__button--pressed{transform:scale(.965);opacity:.82;}',
+      '.ts-full__button-icon{font-size:1.6em;line-height:1;}'
+    ].join('\n');
+
+    document.head.appendChild(style);
   }
 
   if (typeof window !== 'undefined') boot();
