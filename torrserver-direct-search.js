@@ -1,0 +1,371 @@
+(function () {
+  'use strict';
+
+  var PLUGIN_ID = 'ts_direct_search';
+  var PLUGIN_NAME = 'TorrServer Direct Search';
+  var network;
+  var source;
+  var menu_button;
+  var source_registered = false;
+
+  var icon =
+    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M10.5 18a7.5 7.5 0 1 1 5.303-2.197L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M7.5 10.5h6M10.5 7.5v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+    '</svg>';
+
+  function boot() {
+    if (!window.Lampa) {
+      setTimeout(boot, 300);
+      return;
+    }
+
+    if (window[PLUGIN_ID]) return;
+    window[PLUGIN_ID] = true;
+
+    network = new Lampa.Reguest();
+
+    addSettings();
+    buildSource();
+    addMenuButton();
+    syncGlobalSource();
+
+    Lampa.Storage.listener.follow('change', function (event) {
+      if (
+        event.name === PLUGIN_ID + '_in_global_search' ||
+        event.name === PLUGIN_ID + '_use_lampa_url' ||
+        event.name === PLUGIN_ID + '_url' ||
+        event.name === 'torrserver_url' ||
+        event.name === 'torrserver_url_two' ||
+        event.name === 'torrserver_use_link'
+      ) {
+        syncGlobalSource();
+      }
+    });
+
+    console.log(PLUGIN_NAME + ' loaded');
+  }
+
+  function addSettings() {
+    Lampa.SettingsApi.addComponent({
+      component: PLUGIN_ID,
+      name: 'TorrServer поиск',
+      icon: icon
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_use_lampa_url',
+        type: 'trigger',
+        default: true
+      },
+      field: {
+        name: 'Использовать TorrServer из настроек Lampa',
+        description: 'Если выключено, будет использоваться адрес ниже.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_url',
+        type: 'input',
+        default: 'http://127.0.0.1:8090'
+      },
+      field: {
+        name: 'Адрес TorrServer',
+        description: 'Например: http://192.168.1.10:8090'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_in_global_search',
+        type: 'trigger',
+        default: true
+      },
+      field: {
+        name: 'Добавить вкладку в общий поиск',
+        description: 'Вкладка ищет только через TorrServer. Кнопка меню всегда открывает поиск без TMDB/CUB.'
+      }
+    });
+
+    Lampa.SettingsApi.addParam({
+      component: PLUGIN_ID,
+      param: {
+        name: PLUGIN_ID + '_timeout',
+        type: 'input',
+        default: '15'
+      },
+      field: {
+        name: 'Таймаут поиска, секунд',
+        description: 'Сколько ждать ответ от TorrServer.'
+      }
+    });
+  }
+
+  function addMenuButton() {
+    if (menu_button || !Lampa.Menu || !Lampa.Search) return;
+
+    menu_button = Lampa.Menu.addButton(icon, 'TS поиск', function () {
+      Lampa.Search.open({
+        sources: [source],
+        input: ''
+      });
+    });
+  }
+
+  function buildSource() {
+    source = {
+      title: 'TorrServer',
+      search: function (params, done) {
+        var query = decodeURIComponent(params.query || '').trim();
+        if (!query) {
+          done([]);
+          return;
+        }
+
+        searchTorrServer(query, function (items) {
+          items.sort(function (a, b) {
+            return (b.Seeders || 0) - (a.Seeders || 0);
+          });
+
+          var results = items.slice(0, 40);
+          results.forEach(function (item) {
+            item.Title = shortText(item.Title, 110);
+            item.title = item.Title;
+            item.name = item.Title;
+            item.params = {
+              createInstance: function (data) {
+                return new TorrentResultCard(data);
+              }
+            };
+          });
+
+          done(results.length ? [{
+            title: 'TorrServer',
+            results: results,
+            total: items.length,
+            total_pages: Math.ceil(items.length / 40)
+          }] : []);
+        }, function () {
+          done([]);
+        });
+      },
+      onCancel: function () {
+        network.clear();
+      },
+      onRecall: function (data) {
+        if (!data || !data[0] || !data[0].results) return;
+
+        data[0].results.forEach(function (item) {
+          item.params = {
+            createInstance: function (card_data) {
+              return new TorrentResultCard(card_data);
+            }
+          };
+        });
+      },
+      onMore: function (params, close) {
+        close();
+        Lampa.Search.open({
+          sources: [source],
+          input: params.query || ''
+        });
+      },
+      onSelect: function (params, close) {
+        close();
+        Lampa.Torrent.start(params.element, {
+          title: params.element.Title || params.element.title || params.query || 'Torrent'
+        });
+      },
+      params: {
+        lazy: true,
+        nofound: 'search_nofound',
+        start_typing: 'search_start_typing'
+      }
+    };
+  }
+
+  function syncGlobalSource() {
+    if (!Lampa.Search || !source) return;
+
+    if (source_registered) {
+      Lampa.Search.removeSource(source);
+      source_registered = false;
+    }
+
+    if (Lampa.Storage.field(PLUGIN_ID + '_in_global_search') && getTorrServerUrl()) {
+      Lampa.Search.addSource(source);
+      source_registered = true;
+    }
+  }
+
+  function searchTorrServer(query, done, fail) {
+    var base = getTorrServerUrl();
+    if (!base) {
+      Lampa.Noty.show('Укажите адрес TorrServer');
+      fail();
+      return;
+    }
+
+    var timeout = parseInt(Lampa.Storage.field(PLUGIN_ID + '_timeout'), 10);
+    if (!timeout || timeout < 1) timeout = 15;
+
+    network.timeout(timeout * 1000);
+
+    var url = buildUrl(base, '/search/', [{ name: 'query', value: query }]);
+    var request = network.native || network.silent;
+
+    request.call(network, url, function (json) {
+      if (!Array.isArray(json)) {
+        fail();
+        return;
+      }
+
+      done(normalizeResults(json));
+    }, fail);
+  }
+
+  function normalizeResults(items) {
+    var checked_at = Date.now();
+
+    return items.map(function (item) {
+      var title = item.Title || item.title || '';
+      var magnet = item.Magnet || item.MagnetUri || item.Link || '';
+      var hash = Lampa.Utils.hash(magnet || title);
+
+      return {
+        Title: title,
+        title: title,
+        Tracker: item.Tracker || item.tracker || '',
+        Size: item.Size || item.size || 0,
+        size: normalizeSize(item.Size || item.size || 0),
+        PublishDate: Lampa.Utils.strToTime(item.CreateDate || item.PublishDate || item.publishDate || ''),
+        Seeders: parseInt(item.Seed || item.Seeders || item.seeders || 0, 10),
+        Peers: parseInt(item.Peer || item.Peers || item.peers || 0, 10),
+        MagnetUri: magnet,
+        Link: magnet,
+        CategoryDesc: item.Categories || item.CategoryDesc || '',
+        bitrate: '-',
+        checked_at: checked_at,
+        source_rank: 0,
+        hash: hash,
+        viewed: viewed(hash)
+      };
+    }).filter(function (item) {
+      return item.Title && item.MagnetUri;
+    });
+  }
+
+  function getTorrServerUrl() {
+    if (Lampa.Storage.field(PLUGIN_ID + '_use_lampa_url')) {
+      if (Lampa.Torserver && Lampa.Torserver.url && Lampa.Torserver.url()) {
+        return Lampa.Torserver.url();
+      }
+
+      var use_second = Lampa.Storage.field('torrserver_use_link') === 'two';
+      var lampa_url = Lampa.Storage.field(use_second ? 'torrserver_url_two' : 'torrserver_url');
+      return lampa_url ? normalizeUrl(lampa_url) : '';
+    }
+
+    return normalizeUrl(Lampa.Storage.field(PLUGIN_ID + '_url'));
+  }
+
+  function normalizeUrl(url) {
+    if (!url) return '';
+    return Lampa.Utils.checkEmptyUrl((url + '').replace(/\/+$/, ''));
+  }
+
+  function buildUrl(base, path, query) {
+    if (Lampa.Utils.buildUrl) return Lampa.Utils.buildUrl(base, path, query);
+
+    var url = base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
+    var query_string = query.map(function (item) {
+      return encodeURIComponent(item.name) + '=' + encodeURIComponent(item.value);
+    }).join('&');
+
+    return url + (query_string ? '?' + query_string : '');
+  }
+
+  function viewed(hash) {
+    var view = Lampa.Storage.cache('torrents_view', 5000, []);
+    return view.indexOf(hash) > -1;
+  }
+
+  function normalizeSize(size) {
+    if (typeof size === 'number') return Lampa.Utils.bytesToSize(size);
+    return size || '';
+  }
+
+  function shortText(text, len) {
+    text = text || '';
+    if (Lampa.Utils.shortText) return Lampa.Utils.shortText(text, len);
+    return text.length > len ? text.slice(0, len - 3) + '...' : text;
+  }
+
+  function TorrentResultCard(data) {
+    this.data = data;
+    this.components = [];
+    this.html = null;
+  }
+
+  TorrentResultCard.prototype.use = function (module) {
+    if (this.components.indexOf(module) < 0) this.components.push(module);
+  };
+
+  TorrentResultCard.prototype.emit = function (event) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var name = event.charAt(0).toUpperCase() + event.slice(1);
+    var only = null;
+
+    this.components.forEach(function (component) {
+      if (typeof component['only' + name] === 'function') only = component['only' + name];
+    });
+
+    if (only) return only.apply(this, args);
+
+    this.components.forEach(function (component) {
+      if (typeof component['on' + name] === 'function') component['on' + name].apply(this, args);
+    }, this);
+  };
+
+  TorrentResultCard.prototype.create = function () {
+    var data = this.data;
+    var template;
+
+    try {
+      template = Lampa.Template.js('card_parser', data);
+    } catch (error) {
+      template = $('<div class="card-parser"><div class="card-parser__title"></div><div class="card-parser__line"></div></div>');
+      template.find('.card-parser__title').text(data.Title || data.title || '');
+      template.find('.card-parser__line').text((data.Tracker || 'TorrServer') + ' / ' + (data.size || ''));
+    }
+
+    this.html = template && template.on ? template : $(template || document.createElement('div'));
+    this.html.addClass('card-parser ts-direct-search-card');
+    this.html.attr('data-hash', data.hash || '');
+    this.html[0].card_data = data;
+    this.html.on('visible', this.emit.bind(this, 'visible'));
+    this.html.on('hover:focus', this.emit.bind(this, 'focus', this.html, data));
+    this.html.on('hover:touch', this.emit.bind(this, 'touch', this.html, data));
+    this.html.on('hover:hover', this.emit.bind(this, 'hover', this.html, data));
+    this.html.on('hover:enter', this.emit.bind(this, 'enter', this.html, data));
+    this.html.on('hover:long', this.emit.bind(this, 'long', this.html, data));
+
+    this.emit('create');
+  };
+
+  TorrentResultCard.prototype.render = function (js) {
+    return js ? this.html : $(this.html);
+  };
+
+  TorrentResultCard.prototype.destroy = function () {
+    if (this.html) this.html.remove();
+    this.emit('destroy');
+  };
+
+  boot();
+})();

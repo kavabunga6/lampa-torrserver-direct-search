@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TorrServer Direct Search для Lampa</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #111318;
+        color: #f1f3f7;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+      }
+
+      main {
+        width: min(760px, 100%);
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        font-size: clamp(30px, 6vw, 56px);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: #c9ced8;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      code,
+      a {
+        color: #73d0ff;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 6px;
+        background: #235fd6;
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        background: #252a34;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>TorrServer Direct Search</h1>
+      <p>Плагин для Lampa, который ищет торренты напрямую через TorrServer и открывает выбранный magnet в стандартном проигрывателе Lampa.</p>
+      <p>URL плагина для Lampa: <code id="plugin-url">torrserver-direct-search.js</code></p>
+      <div class="actions">
+        <a class="button" href="./torrserver-direct-search.js">Открыть plugin.js</a>
+        <a class="button secondary" href="./README.md">README</a>
+      </div>
+    </main>
+    <script>
+      document.getElementById('plugin-url').textContent = new URL('./torrserver-direct-search.js', location.href).href;
+    </script>
+  </body>
+</html>
