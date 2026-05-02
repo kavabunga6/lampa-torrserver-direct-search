@@ -70,15 +70,18 @@
   <body>
     <main>
       <h1>TorrServer Direct Search</h1>
-      <p>Плагин для Lampa, который ищет торренты напрямую через TorrServer и открывает выбранный magnet в стандартном проигрывателе Lampa.</p>
+      <p>Плагины для Lampa: прямой поиск через TorrServer и фильтр источников общего поиска.</p>
       <p>URL плагина для Lampa: <code id="plugin-url">torrserver-direct-search.js</code></p>
+      <p>URL фильтра источников: <code id="filter-url">search-source-filter.js</code></p>
       <div class="actions">
-        <a class="button" href="./torrserver-direct-search.js">Открыть plugin.js</a>
+        <a class="button" href="./torrserver-direct-search.js">TorrServer plugin</a>
+        <a class="button secondary" href="./search-source-filter.js">Source filter</a>
         <a class="button secondary" href="./README.md">README</a>
       </div>
     </main>
     <script>
       document.getElementById('plugin-url').textContent = new URL('./torrserver-direct-search.js', location.href).href;
+      document.getElementById('filter-url').textContent = new URL('./search-source-filter.js', location.href).href;
     </script>
   </body>
 </html>
