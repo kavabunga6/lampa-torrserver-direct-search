@@ -9,6 +9,7 @@
   var menu_button;
   var source_registered = false;
   var menu_listener_registered = false;
+  var styles_injected = false;
 
   var icon =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -500,18 +501,42 @@
   TorrentResultCard.prototype.create = function () {
     var data = this.data;
 
+    injectCardStyles();
+
     this.html = createTorrentCardHtml(data);
     this.html.attr('data-hash', data.hash || '');
     this.html.card_data = data;
     this.html[0].card_data = data;
     this.html.on('visible', this.emit.bind(this, 'visible'));
-    this.html.on('hover:focus', this.emit.bind(this, 'focus', this.html, data));
-    this.html.on('hover:touch', this.emit.bind(this, 'touch', this.html, data));
-    this.html.on('hover:hover', this.emit.bind(this, 'hover', this.html, data));
-    this.html.on('hover:enter', this.emit.bind(this, 'enter', this.html, data));
+    this.html.on('hover:focus', this.onFocus.bind(this));
+    this.html.on('hover:touch', this.onTouch.bind(this));
+    this.html.on('hover:hover', this.onHover.bind(this));
+    this.html.on('hover:enter', this.onEnter.bind(this));
     this.html.on('hover:long', this.emit.bind(this, 'long', this.html, data));
 
     this.emit('create');
+  };
+
+  TorrentResultCard.prototype.onFocus = function () {
+    $('.ts-direct-search-card').removeClass('focus hover');
+    this.html.addClass('focus');
+    this.emit('focus', this.html, this.data);
+  };
+
+  TorrentResultCard.prototype.onHover = function () {
+    $('.ts-direct-search-card').removeClass('hover');
+    this.html.addClass('hover');
+    this.emit('hover', this.html, this.data);
+  };
+
+  TorrentResultCard.prototype.onTouch = function () {
+    pressCard(this.html);
+    this.emit('touch', this.html, this.data);
+  };
+
+  TorrentResultCard.prototype.onEnter = function () {
+    pressCard(this.html);
+    this.emit('enter', this.html, this.data);
   };
 
   TorrentResultCard.prototype.render = function (js) {
@@ -522,6 +547,33 @@
     if (this.html) this.html.remove();
     this.emit('destroy');
   };
+
+  function pressCard(card) {
+    card.addClass('ts-direct-search-card--pressed');
+
+    setTimeout(function () {
+      card.removeClass('ts-direct-search-card--pressed');
+    }, 140);
+  }
+
+  function injectCardStyles() {
+    if (styles_injected) return;
+    styles_injected = true;
+
+    var style = document.createElement('style');
+    style.id = 'ts-direct-search-card-styles';
+    style.textContent = [
+      '.ts-direct-search-card{transition:transform .12s ease, opacity .12s ease; transform-origin:center top;}',
+      '.ts-direct-search-card .card__view{overflow:visible;}',
+      '.ts-direct-search-card .card__img{border-radius:1em;}',
+      '.ts-direct-search-card.focus .card__view::after,',
+      '.ts-direct-search-card.hover .card__view::after{content:"";position:absolute;top:-.5em;left:-.5em;right:-.5em;bottom:-.5em;border:.3em solid #fff;border-radius:1.4em;z-index:-1;pointer-events:none;}',
+      '.ts-direct-search-card.hover .card__view::after{border-color:rgba(255,255,255,.5);}',
+      '.ts-direct-search-card--pressed{transform:scale(.965);opacity:.82;}'
+    ].join('\n');
+
+    document.head.appendChild(style);
+  }
 
   function createTorrentCardHtml(data) {
     var title = data.Title || data.title || '';
@@ -546,22 +598,17 @@
     html.find('.ts-direct-search-card__meta').text(meta.join(' / '));
     html.find('.card__img').attr('src', data.poster || data.img || buildPoster(title, data.Tracker));
     html.css({
-      width: '11.5em',
-      marginRight: '1em',
-      boxSizing: 'border-box'
+      marginRight: '1em'
     });
     html.find('.ts-direct-search-card__poster').css({
-      width: '11.5em',
-      height: '17.25em',
-      borderRadius: '0.45em',
-      overflow: 'hidden',
       background: 'rgba(255,255,255,0.08)'
     });
     html.find('.card__img').css({
       width: '100%',
       height: '100%',
       display: 'block',
-      objectFit: 'cover'
+      objectFit: 'cover',
+      borderRadius: '1em'
     });
     html.find('.ts-direct-search-card__title').css({
       marginTop: '0.65em',
