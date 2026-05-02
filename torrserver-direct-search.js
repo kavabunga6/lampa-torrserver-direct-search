@@ -902,7 +902,14 @@
       '<div class="ts-full">' +
         '<div class="ts-full__poster"><img alt=""></div>' +
         '<div class="ts-full__body">' +
+          '<div class="ts-full__topline"></div>' +
           '<div class="ts-full__title"></div>' +
+          '<div class="ts-full__subtitle"></div>' +
+          '<div class="ts-full__badges">' +
+            '<div class="ts-full__badge ts-full__badge--size"></div>' +
+            '<div class="ts-full__badge ts-full__badge--seed"></div>' +
+            '<div class="ts-full__badge ts-full__badge--peer"></div>' +
+          '</div>' +
           '<div class="ts-full__meta"></div>' +
           '<div class="ts-full__actions">' +
             '<div class="selector ts-full__button ts-full__button--play"><div class="ts-full__button-icon">▶</div><div>Смотреть</div></div>' +
@@ -913,7 +920,12 @@
     );
 
     this.html.find('.ts-full__poster img').attr('src', poster);
+    this.html.find('.ts-full__topline').text(details.topline);
     this.html.find('.ts-full__title').text(title);
+    this.html.find('.ts-full__subtitle').text(details.subtitle);
+    this.html.find('.ts-full__badge--size').text(details.size);
+    this.html.find('.ts-full__badge--seed').text(details.seed);
+    this.html.find('.ts-full__badge--peer').text(details.peer);
     this.html.find('.ts-full__meta').text(details.meta);
     this.html.find('.ts-full__description').text(details.description);
     this.html.find('.ts-full__button--play').on('hover:enter', this.play.bind(this));
@@ -974,27 +986,30 @@
   };
 
   function torrentDetails(card) {
+    var topline = [];
     var meta = [];
     var description = [];
     var tmdb = card.tmdb || {};
     var date = tmdb.release_date || tmdb.first_air_date || '';
     var year = date ? String(date).slice(0, 4) : '';
 
-    if (year) meta.push(year);
-    if (tmdb.vote_average) meta.push(Number(tmdb.vote_average).toFixed(1));
-    if (card.size) meta.push(card.size);
-    if (!isNaN(card.Seeders)) meta.push('Сиды: ' + card.Seeders);
-    if (!isNaN(card.Peers)) meta.push('Пиры: ' + card.Peers);
-    if (card.Tracker) meta.push(card.Tracker);
+    if (year) topline.push(year);
+    if (tmdb.original_language) topline.push(tmdb.original_language.toUpperCase());
+    if (card.Tracker) topline.push(card.Tracker);
+
     if (card.CategoryDesc) meta.push(card.CategoryDesc);
+    if (card.Link) meta.push('TorrServer');
 
     if (tmdb.overview) description.push(tmdb.overview);
-    description.push('Источник: TorrServer');
     if (card.CreateDate) description.push('Дата: ' + card.CreateDate);
     else if (card.PublishDate) description.push('Дата: ' + new Date(card.PublishDate).toLocaleDateString());
-    if (card.Link) description.push('Ссылка готова к воспроизведению через TorrServer.');
 
     return {
+      topline: topline.join(', '),
+      subtitle: card.Tracker ? 'Источник: ' + card.Tracker : 'Источник: TorrServer',
+      size: card.size || '',
+      seed: !isNaN(card.Seeders) ? '↑ ' + formatNumber(card.Seeders) : '',
+      peer: !isNaN(card.Peers) ? '↓ ' + formatNumber(card.Peers) : '',
       meta: meta.join('  •  '),
       description: description.join('\n')
     };
@@ -1028,15 +1043,19 @@
     var style = document.createElement('style');
     style.id = 'ts-full-styles';
     style.textContent = [
-      '.ts-full{min-height:100%;display:flex;gap:4.5em;align-items:flex-start;padding:5em 4em 4em 8.5em;box-sizing:border-box;color:#fff;}',
-      '.ts-full__poster{width:22em;flex-shrink:0;background:#3f3f3f;border-radius:.8em;overflow:hidden;}',
+      '.ts-full{min-height:100%;display:flex;gap:4.3em;align-items:flex-start;padding:3.8em 4em 3em 7.5em;box-sizing:border-box;color:#fff;}',
+      '.ts-full__poster{width:21.4em;flex-shrink:0;background:#3f3f3f;border-radius:0;overflow:hidden;}',
       '.ts-full__poster img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;}',
-      '.ts-full__body{min-width:0;max-width:64em;padding-top:1em;}',
-      '.ts-full__title{font-size:2.75em;line-height:1.12;margin-bottom:.45em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
-      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.68);line-height:1.45;margin-bottom:1.15em;}',
-      '.ts-full__description{font-size:1.25em;line-height:1.55;color:rgba(255,255,255,.72);white-space:pre-line;margin-top:1.6em;}',
+      '.ts-full__body{min-width:0;max-width:68em;padding-top:.25em;}',
+      '.ts-full__topline{font-size:1.35em;color:rgba(255,255,255,.6);line-height:1.3;margin-bottom:.55em;}',
+      '.ts-full__title{font-size:4.15em;line-height:1.04;margin-bottom:.22em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}',
+      '.ts-full__subtitle{font-size:2em;line-height:1.25;color:rgba(255,255,255,.92);margin-bottom:.9em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}',
+      '.ts-full__badges{display:flex;gap:.65em;align-items:center;margin-bottom:1.5em;}',
+      '.ts-full__badge{min-height:2.2em;padding:0 .7em;border-radius:.35em;background:rgba(0,0,0,.3);display:flex;align-items:center;font-size:1.15em;color:rgba(255,255,255,.9);}',
+      '.ts-full__meta{font-size:1.35em;color:rgba(255,255,255,.78);line-height:1.45;margin-bottom:1.45em;}',
+      '.ts-full__description{font-size:1.15em;line-height:1.45;color:rgba(255,255,255,.58);white-space:pre-line;margin-top:1.4em;max-width:54em;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}',
       '.ts-full__actions{display:flex;gap:1em;align-items:center;margin-bottom:.4em;}',
-      '.ts-full__button{height:5.4em;min-width:10.5em;padding:0 1.6em;border-radius:.45em;background:rgba(0,0,0,.42);display:flex;gap:.9em;align-items:center;justify-content:center;font-size:1.05em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
+      '.ts-full__button{height:4.6em;min-width:13.4em;padding:0 1.4em;border-radius:.32em;background:rgba(0,0,0,.42);display:flex;gap:.9em;align-items:center;justify-content:center;font-size:1.22em;transition:transform .12s ease,background .12s ease,opacity .12s ease;}',
       '.ts-full__button.focus,.ts-full__button.hover{background:#fff;color:#111;}',
       '.ts-full__button--pressed{transform:scale(.965);opacity:.82;}',
       '.ts-full__button-icon{font-size:1.6em;line-height:1;}'
