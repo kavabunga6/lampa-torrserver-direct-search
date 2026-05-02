@@ -300,24 +300,23 @@
 
   function buildFullMovie(item) {
     var tmdb = item.tmdb || {};
+    var is_tv = isTvItem(tmdb);
     var title = item.Title || item.title || tmdb.title || tmdb.name || 'TorrServer';
     var id = tmdb.id || item.hash || lampaUtils().hash(item.Link || title || 'torrserver');
-    var release = tmdb.release_date || tmdb.first_air_date || publishDate(item) || '';
+    var release = is_tv ? (tmdb.first_air_date || tmdb.release_date || publishDate(item) || '') : (tmdb.release_date || publishDate(item) || '');
     var poster = tmdb.poster_path || (item.poster && item.poster.indexOf('data:image/') !== 0 ? item.poster : '');
     var backdrop = tmdb.backdrop_path || tmdb.background_image || poster;
     var countries = normalizeCountries(tmdb);
     var reactions_enabled = canUseReactions(item);
 
-    return {
+    var movie = {
       id: id,
       source: 'torrserver',
-      method: 'movie',
+      method: is_tv ? 'tv' : 'movie',
       card: item,
       title: title,
-      name: title,
-      original_title: tmdb.original_title || tmdb.original_name || title,
+      original_title: tmdb.original_title || title,
       release_date: release,
-      first_air_date: release,
       overview: tmdb.overview || torrentOverview(item),
       tagline: item.Tracker ? 'TorrServer / ' + item.Tracker : 'TorrServer',
       vote_average: tmdb.vote_average || 0,
@@ -338,6 +337,20 @@
       ts_reactions_enabled: reactions_enabled,
       ts_torrent_card: item
     };
+
+    if (is_tv) {
+      movie.name = title;
+      movie.original_name = tmdb.original_name || tmdb.original_title || title;
+      movie.first_air_date = release;
+    }
+
+    return movie;
+  }
+
+  function isTvItem(tmdb) {
+    if (!tmdb) return false;
+    if (tmdb.media_type) return tmdb.media_type === 'tv';
+    return !!(tmdb.name || tmdb.original_name || tmdb.first_air_date) && !tmdb.title && !tmdb.original_title && !tmdb.release_date;
   }
 
   function canUseReactions(item) {

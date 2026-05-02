@@ -128,6 +128,9 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
   assert.equal(movie.id, 603);
   assert.equal(movie.title, 'The Matrix 1999 1080p');
   assert.equal(movie.release_date, '1999-03-31');
+  assert.equal(movie.first_air_date, undefined);
+  assert.equal(movie.name, undefined);
+  assert.equal(movie.original_name, undefined);
   assert.equal(movie.poster_path, '/poster.jpg');
   assert.equal(movie.background_image, '/backdrop.jpg');
   assert.deepEqual(movie.origin_country, ['United States of America']);
@@ -136,6 +139,37 @@ test('builds a Lampa full movie object that keeps the playable torrent card', ()
   assert.equal(movie.ts_reactions_enabled, true);
   assert.equal(movie.ts_torrent_card, source);
   assert.equal(movie.card, source);
+});
+
+test('keeps TV fields only for real TV matches', () => {
+  const movie = plugin.buildFullMovie({
+    Title: 'Movie release',
+    Link: 'http://torrserver.home/dl/movie.torrent',
+    tmdb: {
+      media_type: 'movie',
+      title: 'Movie release',
+      original_name: 'Should not mark as TV',
+      first_air_date: '2024-01-01',
+      release_date: '2024-02-01'
+    }
+  });
+  const tv = plugin.buildFullMovie({
+    Title: 'Show release',
+    Link: 'http://torrserver.home/dl/show.torrent',
+    tmdb: {
+      media_type: 'tv',
+      name: 'Show release',
+      original_name: 'Show release',
+      first_air_date: '2024-01-01'
+    }
+  });
+
+  assert.equal(movie.method, 'movie');
+  assert.equal(movie.original_name, undefined);
+  assert.equal(movie.first_air_date, undefined);
+  assert.equal(tv.method, 'tv');
+  assert.equal(tv.original_name, 'Show release');
+  assert.equal(tv.first_air_date, '2024-01-01');
 });
 
 test('disables reactions for torrent-only full cards without a real TMDB id', () => {
