@@ -72,6 +72,33 @@ test('filters any source by stable key', () => {
   assert.deepEqual(filtered.map((source) => source.title), ['TorrServer']);
 });
 
+test('sorts source settings alphabetically by title', () => {
+  const sources = [
+    { title: 'TorrServer' },
+    { title: 'AI-ассистент' },
+    { title: 'CUB' },
+    { title: 'TMDB' }
+  ].sort(filter.compareSourceItems);
+
+  assert.deepEqual(sources.map((source) => source.title), [
+    'AI-ассистент',
+    'CUB',
+    'TMDB',
+    'TorrServer'
+  ]);
+});
+
+test('adds restart warning for AI source settings only', () => {
+  assert.match(
+    filter.sourceSettingDescription({ title: 'AI-ассистент' }),
+    /перезагрузку Lampa/
+  );
+  assert.doesNotMatch(
+    filter.sourceSettingDescription({ title: 'TMDB' }),
+    /перезагрузку Lampa/
+  );
+});
+
 test('still supports legacy array rules', () => {
   const sources = [
     { title: 'CUB' },

@@ -120,9 +120,7 @@
 
     list = Object.keys(discovered).map(function (key) {
       return discovered[key];
-    }).sort(function (a, b) {
-      return a.title.localeCompare(b.title);
-    });
+    }).sort(compareSourceItems);
 
     list.forEach(function (item) {
       if (dynamic_settings[item.key]) return;
@@ -138,10 +136,51 @@
         },
         field: {
           name: 'Показывать ' + item.title,
-          description: 'Источник будет исключен из поиска, если выключить этот пункт.'
+          description: sourceSettingDescription(item)
         }
       });
     });
+  }
+
+  function compareSourceItems(a, b) {
+    return sourceSortTitle(a).localeCompare(sourceSortTitle(b), currentLocale(), {
+      sensitivity: 'base',
+      numeric: true
+    });
+  }
+
+  function sourceSortTitle(item) {
+    return ((item && item.title) || '').trim().toLowerCase();
+  }
+
+  function sourceSettingDescription(item) {
+    var description = 'Источник будет исключен из поиска, если выключить этот пункт.';
+
+    if (isAiSource(item)) {
+      description += ' Для AI-источников отключение может потребовать перезагрузку Lampa.';
+    }
+
+    return description;
+  }
+
+  function isAiSource(source) {
+    var title = sourceTitle(source);
+
+    return title.indexOf('ai') !== -1 || title.indexOf('ассистент') !== -1;
+  }
+
+  function currentLocale() {
+    if (typeof window !== 'undefined') {
+      if (window.Lampa && Lampa.Storage && Lampa.Storage.field('language')) {
+        return Lampa.Storage.field('language');
+      }
+
+      if (window.navigator && (navigator.language || navigator.userLanguage)) {
+        return navigator.language || navigator.userLanguage;
+      }
+    }
+
+    return 'ru-RU';
   }
 
   function isBlockedSource(source, rules) {
@@ -332,10 +371,13 @@
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+      compareSourceItems: compareSourceItems,
       filterOpenParams: filterOpenParams,
       filterSources: filterSources,
+      isAiSource: isAiSource,
       isBlockedSource: isBlockedSource,
-      sourceKey: sourceKey
+      sourceKey: sourceKey,
+      sourceSettingDescription: sourceSettingDescription
     };
   }
 })();
